@@ -28,4 +28,8 @@ interface DeviceOwnerApi {
 
     // returns true on success; never throws
     fun grantLocationAccess(): Boolean
+
+    // @tag:url-filter @tag:device-owner
+    // values: String, Int or List<String>; an empty map clears the restrictions; returns true on success; never throws
+    fun setApplicationRestrictions(packageName: String, restrictions: Map<String, Any>): Boolean
 }

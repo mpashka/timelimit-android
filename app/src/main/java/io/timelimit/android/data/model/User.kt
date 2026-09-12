@@ -26,7 +26,8 @@ import io.timelimit.android.util.parseJsonArray
 @Entity(tableName = "user")
 @TypeConverters(
         UserTypeConverter::class,
-        ImmutableBitmaskAdapter::class
+        ImmutableBitmaskAdapter::class,
+        UserUrlFilterConverter::class
 )
 data class User(
         @PrimaryKey
@@ -62,7 +63,10 @@ data class User(
         @Deprecated(message = "this feature was removed; the limit login category is a replacement")
         val obsoleteBlockedTimes: String = "",
         @ColumnInfo(name = "flags")
-        val flags: Long
+        val flags: Long,
+        // @tag:url-filter
+        @ColumnInfo(name = "url_filter")
+        val urlFilter: UserUrlFilter? = null
 ): JsonSerializable {
     companion object {
         private const val ID = "id"
@@ -79,6 +83,7 @@ data class User(
         private const val MAIL_NOTIFICATION_FLAGS = "mailNotificationFlags"
         private const val OBSOLETE_BLOCKED_TIMES = "blockedTimes"
         private const val FLAGS = "flags"
+        private const val URL_FILTER = "urlFilter"
 
         fun parse(reader: JsonReader): User {
             var id: String? = null
@@ -94,6 +99,7 @@ data class User(
             var relaxPrimaryDevice = false
             var mailNotificationFlags = 0
             var flags = 0L
+            var urlFilter: UserUrlFilter? = null
 
             reader.beginObject()
             while (reader.hasNext()) {
@@ -111,6 +117,7 @@ data class User(
                     RELAX_PRIMARY_DEVICE -> relaxPrimaryDevice = reader.nextBoolean()
                     MAIL_NOTIFICATION_FLAGS -> mailNotificationFlags = reader.nextInt()
                     FLAGS -> flags = reader.nextLong()
+                    URL_FILTER -> urlFilter = UserUrlFilterJson.parseNullable(reader)
                     else -> reader.skipValue()
                 }
             }
@@ -129,7 +136,8 @@ data class User(
                     categoryForNotAssignedApps = categoryForNotAssignedApps,
                     relaxPrimaryDevice = relaxPrimaryDevice,
                     mailNotificationFlags = mailNotificationFlags,
-                    flags = flags
+                    flags = flags,
+                    urlFilter = urlFilter
             )
         }
 
@@ -183,6 +191,7 @@ data class User(
         writer.name(MAIL_NOTIFICATION_FLAGS).value(mailNotificationFlags)
         writer.name(OBSOLETE_BLOCKED_TIMES).value("")
         writer.name(FLAGS).value(flags)
+        urlFilter?.let { writer.name(URL_FILTER); UserUrlFilterJson.serialize(it, writer) }
 
         writer.endObject()
     }

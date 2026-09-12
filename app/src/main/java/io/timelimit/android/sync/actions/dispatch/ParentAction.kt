@@ -753,6 +753,12 @@ object LocalDatabaseParentActionDispatcher {
 
                     database.user().updateUserSync(updatedUser)
                 }
+                is UpdateUserUrlFilterAction -> {
+                    val user = database.user().getUserByIdSync(action.userId)
+                        ?: throw IllegalArgumentException("user not found")
+
+                    database.user().updateUserSync(user.copy(urlFilter = action.filter))
+                }
                 is UpdateUserLimitLoginCategory -> {
                     val user = database.user().getUserByIdSync(action.userId)!!
 

@@ -2088,6 +2088,29 @@ data class UpdateUserFlagsAction(val userId: String, val modifiedBits: Long, val
     }
 }
 
+// @tag:url-filter
+data class UpdateUserUrlFilterAction(val userId: String, val filter: UserUrlFilter): ParentAction() {
+    companion object {
+        const val TYPE_VALUE = "UPDATE_USER_URL_FILTER"
+        const val MIN_SERVER_API_LEVEL = 10
+        private const val USER_ID = "userId"
+    }
+
+    init {
+        IdGenerator.assertIdValid(userId)
+    }
+
+    override fun serialize(writer: JsonWriter) {
+        writer.beginObject()
+
+        writer.name(TYPE).value(TYPE_VALUE)
+        writer.name(USER_ID).value(userId)
+        UserUrlFilterJson.serializeFields(filter, writer)
+
+        writer.endObject()
+    }
+}
+
 data class UpdateUserLimitLoginCategory(val userId: String, val categoryId: String?): ParentAction() {
     companion object {
         private const val TYPE_VALUE = "UPDATE_USER_LIMIT_LOGIN_CATEGORY"

@@ -84,7 +84,8 @@ object ApplyServerDataStatus {
                                     categoryForNotAssignedApps = newEntry.categoryForNotAssignedApps,
                                     relaxPrimaryDevice = newEntry.relaxPrimaryDevice,
                                     mailNotificationFlags = newEntry.mailNotificationFlags,
-                                    flags = newEntry.flags
+                                    flags = newEntry.flags,
+                                    urlFilter = newEntry.urlFilter
                             )
 
                             val oldEntry = oldUserList.find { it.id == newData.id }

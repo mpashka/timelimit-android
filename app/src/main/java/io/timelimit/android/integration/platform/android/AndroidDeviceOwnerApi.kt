@@ -23,6 +23,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build.VERSION
 import android.os.Build.VERSION_CODES
+import android.os.Bundle
 import android.util.Log
 import io.timelimit.android.BuildConfig
 import io.timelimit.android.integration.platform.DeviceOwnerApi
@@ -147,6 +148,33 @@ class AndroidDeviceOwnerApi(
             )
 
             return false
+        }
+    }
+
+    // @tag:url-filter @tag:device-owner
+    override fun setApplicationRestrictions(packageName: String, restrictions: Map<String, Any>): Boolean {
+        if (BuildConfig.storeCompilant) return false
+        if (!devicePolicyManager.isDeviceOwnerApp(componentName.packageName)) return false
+
+        return try {
+            val bundle = Bundle()
+
+            restrictions.forEach { (key, value) ->
+                when (value) {
+                    is String -> bundle.putString(key, value)
+                    is Int -> bundle.putInt(key, value)
+                    is List<*> -> bundle.putStringArray(key, value.map { it as String }.toTypedArray())
+                    else -> throw IllegalArgumentException("unsupported restriction type for $key")
+                }
+            }
+
+            devicePolicyManager.setApplicationRestrictions(componentName, packageName, bundle)
+
+            true
+        } catch (ex: Exception) {
+            Log.w(LOG_TAG, "setApplicationRestrictions($packageName) failed", ex)
+
+            false
         }
     }
 }

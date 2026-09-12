@@ -215,7 +215,8 @@ data class ServerUserData(
         val mailNotificationFlags: Int,
         val flags: Long,
         val limitLoginCategory: String?,
-        val preBlockDuration: Long
+        val preBlockDuration: Long,
+        val urlFilter: UserUrlFilter?
 ) {
     companion object {
         private const val ID = "id"
@@ -233,6 +234,7 @@ data class ServerUserData(
         private const val FLAGS = "flags"
         private const val USER_LIMIT_LOGIN_CATEGORY = "llc"
         private const val PRE_BLOCK_DURATION = "pbd"
+        private const val URL_FILTER = "urlFilter"
 
         fun parse(reader: JsonReader): ServerUserData {
             var id: String? = null
@@ -250,6 +252,7 @@ data class ServerUserData(
             var flags = 0L
             var limitLoginCategory: String? = null
             var preBlockDuration = 0L
+            var urlFilter: UserUrlFilter? = null
 
             reader.beginObject()
             while (reader.hasNext()) {
@@ -269,6 +272,7 @@ data class ServerUserData(
                     FLAGS -> flags = reader.nextLong()
                     USER_LIMIT_LOGIN_CATEGORY -> if (reader.peek() == JsonToken.NULL) reader.nextNull() else limitLoginCategory = reader.nextString()
                     PRE_BLOCK_DURATION -> preBlockDuration = reader.nextLong()
+                    URL_FILTER -> urlFilter = UserUrlFilterJson.parseNullable(reader) // @tag:url-filter
                     else -> reader.skipValue()
                 }
             }
@@ -289,7 +293,8 @@ data class ServerUserData(
                     mailNotificationFlags = mailNotificationFlags,
                     flags = flags,
                     limitLoginCategory = limitLoginCategory,
-                    preBlockDuration = preBlockDuration
+                    preBlockDuration = preBlockDuration,
+                    urlFilter = urlFilter
             )
         }
 

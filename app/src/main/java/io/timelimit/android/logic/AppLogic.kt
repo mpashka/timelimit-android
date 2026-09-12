@@ -102,6 +102,7 @@ class AppLogic(
 
     val suspendAppsLogic = SuspendAppsLogic(this)
     val annoyLogic = AnnoyLogic(this)
+    val urlFilterLogic = UrlFilterLogic(this)
 
     fun shutdown() {
         enable.value = false

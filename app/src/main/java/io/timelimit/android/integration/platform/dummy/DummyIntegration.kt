@@ -209,5 +209,7 @@ class DummyIntegration(
         override fun transferOwnership(packageName: String, dryRun: Boolean) = throw IllegalStateException("unsupported operation")
 
         override fun grantLocationAccess(): Boolean = false
+
+        override fun setApplicationRestrictions(packageName: String, restrictions: Map<String, Any>): Boolean = false
     }
 }
