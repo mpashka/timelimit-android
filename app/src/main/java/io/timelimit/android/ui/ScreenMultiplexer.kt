@@ -27,6 +27,8 @@ import io.timelimit.android.ui.manage.category.blocked_times.BlockedTimesScreen
 import io.timelimit.android.ui.manage.child.ManageChildScreen
 import io.timelimit.android.ui.manage.child.primarydevice.CurrentDeviceScreen
 import io.timelimit.android.ui.manage.child.usagehistory.UsageHistoryScreen
+import io.timelimit.android.ui.manage.child.urlfilter.UrlFilterScreen
+import io.timelimit.android.ui.manage.child.appusage.AppUsageScreen
 import io.timelimit.android.ui.manage.device.manage.permission.ManageDevicePermissionScreen
 import io.timelimit.android.ui.manage.device.manage.user.ManageDeviceUserScreen
 import io.timelimit.android.ui.model.Screen
@@ -63,6 +65,8 @@ fun ScreenMultiplexer(
         is Screen.DeleteRegistration -> DeleteRegistrationScreen(screen.content, modifier.padding(paddingValues))
         is Screen.ManageBlockedTimes -> BlockedTimesScreen(screen.content, screen.intro, modifier.padding(paddingValues))
         is Screen.ChildUsageHistory -> UsageHistoryScreen(screen.content, modifier.padding(paddingValues))
+        is Screen.ManageChildUrlFilter -> UrlFilterScreen(screen.content, modifier.padding(paddingValues))
+        is Screen.ManageChildAppUsage -> AppUsageScreen(screen.content, modifier.padding(paddingValues))
         is Screen.SetupParentMailAuthentication -> AuthenticateByMailScreen(screen.content, modifier.padding(paddingValues))
         is Screen.SignupBlocked -> SignupBlockedScreen(modifier.padding(paddingValues))
         is Screen.SignInWrongMailAddress -> SignInWrongMailAddress(modifier.padding(paddingValues))

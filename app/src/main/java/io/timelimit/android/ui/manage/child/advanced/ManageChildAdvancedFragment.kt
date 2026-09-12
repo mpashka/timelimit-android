@@ -86,6 +86,11 @@ class ManageChildAdvancedFragment : Fragment() {
                 auth = auth
         )
 
+        // @tag:url-filter
+        binding.urlFilterButton.setOnClickListener {
+            requireActivity().execute(UpdateStateCommand.ManageChild.UrlFilter)
+        }
+
         binding.renameChildButton.setOnClickListener {
             if (auth.requestAuthenticationOrReturnTrue()) {
                 UpdateChildNameDialogFragment.newInstance(childId).show(parentFragmentManager)

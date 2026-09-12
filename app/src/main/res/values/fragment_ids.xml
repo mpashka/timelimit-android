@@ -22,6 +22,8 @@
     <item name="fragment_manage_child_advanced_current_device" type="id" />
     <item name="fragment_manage_child_contacts" type="id" />
     <item name="fragment_manage_child_usage_history" type="id" />
+    <item name="fragment_manage_child_app_usage" type="id" />
+    <item name="fragment_manage_child_url_filter" type="id" />
     <item name="fragment_manage_child_tasks" type="id" />
     <item name="fragment_manage_category" type="id" />
     <item name="fragment_manage_category_advanced" type="id" />

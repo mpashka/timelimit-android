@@ -30,6 +30,8 @@ import io.timelimit.android.ui.model.managechild.ManageCategoryBlockedTimes
 import io.timelimit.android.ui.model.managechild.ManageChildCategoryList
 import io.timelimit.android.ui.model.managechild.ManageChildCurrentDevice
 import io.timelimit.android.ui.model.managechild.ManageChildUsageHistory
+import io.timelimit.android.ui.model.managechild.ManageChildUrlFilter
+import io.timelimit.android.ui.model.managechild.ManageChildAppUsage
 import io.timelimit.android.ui.model.managedevice.ManageDeviceUser
 import io.timelimit.android.ui.model.setup.SetupParentHandling
 
@@ -132,6 +134,25 @@ sealed class Screen(
         override val backStack: List<BackStackItem>
     ): Screen(state, toolbarIcons, toolbarOptions), ScreenWithBackStack, ScreenWithTitle {
         override val title = Title.StringResource(R.string.usage_history_title)
+    }
+
+    // @tag:url-filter
+    class ManageChildUrlFilter(
+        state: State,
+        val content: ManageChildUrlFilter.Screen,
+        override val backStack: List<BackStackItem>,
+        override val snackbarHostState: SnackbarHostState
+    ): Screen(state), ScreenWithBackStack, ScreenWithTitle, ScreenWithSnackbar, ScreenWithAuthenticationFab {
+        override val title = Title.StringResource(R.string.url_filter_title)
+    }
+
+    // @tag:category-limits
+    class ManageChildAppUsage(
+        state: State,
+        val content: ManageChildAppUsage.Screen,
+        override val backStack: List<BackStackItem>
+    ): Screen(state), ScreenWithBackStack, ScreenWithTitle {
+        override val title = Title.StringResource(R.string.app_usage_title)
     }
 
     class ManageChildUsageTasks(

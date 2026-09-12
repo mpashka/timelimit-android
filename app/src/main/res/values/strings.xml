@@ -1897,4 +1897,29 @@
     <string name="app_clicked_dialog_message">Tap the trash icon to remove the App from the category.
         To move it to another category, hold the App item.
     </string>
+
+    <!-- @tag:url-filter -->
+    <string name="url_filter_title">Website filter</string>
+    <string name="url_filter_text">Managed configuration for Google Chrome on every device where this child is the current user.
+        One Chrome URL filter per line (format [scheme://][.]host[:port][/path][@query]). The allow list wins over the block list;
+        use * in the block list to block everything else. This requires TimeLimit to be the device owner.</string>
+    <string name="url_filter_enable">Enable website filter</string>
+    <string name="url_filter_allow">Allowed (URLAllowlist)</string>
+    <string name="url_filter_block">Blocked (URLBlocklist)</string>
+    <string name="url_filter_saved">Website filter saved</string>
+    <string name="url_filter_invalid">Invalid filter list: %s</string>
+    <string name="url_filter_server_too_old">The server does not support the website filter yet</string>
+
+    <!-- @tag:category-limits -->
+    <string name="app_usage_title">Time by app</string>
+    <string name="app_usage_hint">Foreground time of apps on this device, from the system usage statistics. The counting status is evaluated for the current time.</string>
+    <string name="app_usage_hint_other_user">Foreground time of apps on this device, from the system usage statistics. This child is not the current user of this device, so the data may belong to someone else.</string>
+    <string name="app_usage_empty">No app usage for this day</string>
+    <string name="app_usage_previous_day">Previous day</string>
+    <string name="app_usage_next_day">Next day</string>
+    <string name="app_usage_counted">time is counted</string>
+    <string name="app_usage_not_counted_no_rules">time is not counted: the category has no active limit rule</string>
+    <string name="app_usage_not_counted_temporarily_allowed">time is not counted: temporarily allowed</string>
+    <string name="app_usage_not_counted_whitelisted">time is not counted: system app exception</string>
+    <string name="app_usage_no_category">no category</string>
 </resources>

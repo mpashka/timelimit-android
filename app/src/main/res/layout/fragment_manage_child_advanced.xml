@@ -71,6 +71,13 @@
 
                     <Button
                         style="?materialButtonOutlinedStyle"
+                        android:id="@+id/url_filter_button"
+                        android:text="@string/url_filter_title"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content" />
+
+                    <Button
+                        style="?materialButtonOutlinedStyle"
                         android:id="@+id/rename_child_button"
                         android:text="@string/rename_child_title"
                         android:layout_width="match_parent"

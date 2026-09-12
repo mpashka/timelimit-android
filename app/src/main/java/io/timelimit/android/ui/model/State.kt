@@ -131,6 +131,13 @@ sealed class State (val previous: State?): Serializable {
             val previousChild: Main,
             val state: ManageChildUsageHistory.State = ManageChildUsageHistory.State()
         ): Sub(previousChild, previousChild, Fragment::class.java, R.id.fragment_manage_child_usage_history)
+        // @tag:url-filter
+        class UrlFilter(val previousAdvanced: Advanced): Sub(previousAdvanced, previousAdvanced.previousMain, Fragment::class.java, R.id.fragment_manage_child_url_filter)
+        // @tag:category-limits
+        data class AppUsage(
+            val previousChild: Main,
+            val daysAgo: Int = 0
+        ): Sub(previousChild, previousChild, Fragment::class.java, R.id.fragment_manage_child_app_usage)
         class Tasks(val previousChild: Main): Sub(previousChild, previousChild, ChildTasksFragmentWrapper::class.java, R.id.fragment_manage_child_tasks) {
             override val arguments: Bundle get() = ChildTasksFragmentWrapperArgs(previousChild.childId).toBundle()
         }

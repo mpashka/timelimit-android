@@ -189,6 +189,16 @@ sealed class UpdateStateCommand {
                 if (state is State.ManageChild.Main) State.ManageChild.Contacts(state)
                 else null
         }
+        object UrlFilter: UpdateStateCommand() {
+            override fun transform(state: State): State? =
+                if (state is State.ManageChild.Advanced) State.ManageChild.UrlFilter(state)
+                else null
+        }
+        object AppUsage: UpdateStateCommand() {
+            override fun transform(state: State): State? =
+                if (state is State.ManageChild.Main) State.ManageChild.AppUsage(state)
+                else null
+        }
         object UsageHistory: UpdateStateCommand() {
             override fun transform(state: State): State? =
                 if (state is State.ManageChild.Main) State.ManageChild.UsageHistory(state)

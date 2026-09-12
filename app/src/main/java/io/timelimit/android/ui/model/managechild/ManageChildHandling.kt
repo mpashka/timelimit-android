@@ -130,6 +130,7 @@ object ManageChildHandling {
                 listOf(
                     Menu.Dropdown(R.string.child_apps_title, UpdateStateCommand.ManageChild.Apps),
                     Menu.Dropdown(R.string.usage_history_title, UpdateStateCommand.ManageChild.UsageHistory),
+                    Menu.Dropdown(R.string.app_usage_title, UpdateStateCommand.ManageChild.AppUsage),
                     Menu.Dropdown(R.string.manage_child_tab_other, UpdateStateCommand.ManageChild.Advanced)
                 ),
                 intro,
@@ -164,6 +165,8 @@ object ManageChildHandling {
             Case.simple<_, _, State.ManageChild.Contacts> { processContactsState(it, subBackStackLive) },
             Case.simple<_, _, State.ManageChild.UsageHistory> { processUsageHistoryState(logic, childId, share(it), updateMethod(updateState), subBackStackLive) },
             Case.simple<_, _, State.ManageChild.Tasks> { processTasksState(it, subBackStackLive) },
+            Case.simple<_, _, State.ManageChild.UrlFilter> { ManageChildUrlFilter.handle(logic, authentication, childId, it, subBackStackLive, userLive, scope) },
+            Case.simple<_, _, State.ManageChild.AppUsage> { ManageChildAppUsage.handle(logic, childId, share(it), updateMethod(updateState), subBackStackLive) },
             Case.simple<_, _, State.ManageChild.ManageCategory> { ManageCategoryHandling.processState(logic, activityCommand, authentication, it, subBackStackLive, updateMethod(updateState)) },
         )
     }
