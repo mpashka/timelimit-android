@@ -100,8 +100,18 @@ android {
     }
 
     signingConfigs {
+        // @tag:release-signing
         release {
-            // empty
+            def keystoreBase64 = System.getenv('TIMELIMIT_KEYSTORE_B64')
+            if (keystoreBase64) {
+                def keystore = File.createTempFile('timelimit-release', '.p12')
+                keystore.deleteOnExit()
+                keystore.bytes = keystoreBase64.decodeBase64()
+                storeFile keystore
+                storePassword System.getenv('TIMELIMIT_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('TIMELIMIT_KEY_ALIAS')
+                keyPassword System.getenv('TIMELIMIT_KEYSTORE_PASSWORD')
+            }
         }
     }
 
