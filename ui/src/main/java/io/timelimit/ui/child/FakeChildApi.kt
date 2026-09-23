@@ -7,6 +7,7 @@ import io.timelimit.api.ChildApi
 import io.timelimit.api.CloseReason
 import io.timelimit.api.GrantChoice
 import io.timelimit.api.GrantScope
+import io.timelimit.api.ModeKind
 import io.timelimit.api.ModeWindow
 import io.timelimit.api.ParentCode
 import io.timelimit.api.Request
@@ -52,7 +53,7 @@ class FakeChildApi : ChildApi {
                 CategoryToday("Всегда можно", null, false, listOf(chrome, camera)),
             ),
             waiting = listOf(WaitingRequest(roblox, NOW - 6 * MINUTE)),
-            nextMode = ModeWindow("сон", NOW + 160 * MINUTE, NOW + 760 * MINUTE),
+            nextMode = ModeWindow(ModeKind.Sleep, NOW + 160 * MINUTE, NOW + 760 * MINUTE),
         )
     }
 

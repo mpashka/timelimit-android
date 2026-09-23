@@ -2222,6 +2222,22 @@ data class AnswerChildRequestAction(val requestId: String, val answer: String, v
     }
 }
 
+// @tag:app-allowance
+data class SetAppAllowanceAction(val userId: String, val packageName: String, val until: Long): ParentAction() {
+    init {
+        IdGenerator.assertIdValid(userId)
+    }
+
+    override fun serialize(writer: JsonWriter) {
+        writer.beginObject()
+        writer.name(TYPE).value("SET_APP_ALLOWANCE")
+        writer.name("userId").value(userId)
+        writer.name("packageName").value(packageName)
+        writer.name("until").value(until)
+        writer.endObject()
+    }
+}
+
 // @tag:app-rule
 data class SetAppRuleAction(val userId: String, val packageName: String, val days: Int, val limitMinutes: Int): ParentAction() {
     init {

@@ -46,7 +46,8 @@ fun AppsScreen(child: ChildHome, api: ParentApi, actions: ParentActions, onApp: 
                 AppRow(line.copy(categoryTitle = line.rule?.let { ruleText(it) })) { onApp(line.app.packageName) }
             }
         }
-        is AppUsage.Unknown -> Text(usage.why, color = colors.secondary)
+        AppUsage.Loading -> Text(stringResource(R.string.parent_usage_loading), color = colors.secondary)
+        is AppUsage.Failed -> Text(stringResource(R.string.parent_usage_failed, usage.message), color = colors.secondary)
     }
 }
 

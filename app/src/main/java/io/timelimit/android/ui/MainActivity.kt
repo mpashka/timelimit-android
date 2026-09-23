@@ -148,7 +148,9 @@ class MainActivity : AppCompatActivity(), ActivityViewModelHolder, U2fManager.De
         )
 
         U2fManager.setupActivity(this)
-        io.timelimit.android.child.UiChoice.redirectParent(this, savedInstanceState == null) // @tag:new-ui
+        io.timelimit.android.child.UiChoice.redirectParent(this, savedInstanceState == null) { // @tag:new-ui
+            io.timelimit.android.ui.login.NewLoginFragment.keepingSignedIn().showSafe(supportFragmentManager, AUTH_DIALOG_TAG)
+        }
 
         NotificationChannels.createNotificationChannels(getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager, this)
 

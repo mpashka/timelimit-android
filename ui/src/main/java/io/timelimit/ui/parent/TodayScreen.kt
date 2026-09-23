@@ -130,7 +130,8 @@ private fun AppsSection(child: ChildHome, api: ParentApi, actions: ParentActions
 
     when (val usage = child.usage) {
         is AppUsage.Known -> (if (week) usage.week else usage.today).take(10).forEach { AppRow(it) { onApp(it.app.packageName) } }
-        is AppUsage.Unknown -> Text(usage.why, color = colors.secondary, fontSize = 14.sp)
+        AppUsage.Loading -> Text(stringResource(R.string.parent_usage_loading), color = colors.secondary, fontSize = 14.sp)
+        is AppUsage.Failed -> Text(stringResource(R.string.parent_usage_failed, usage.message), color = colors.secondary, fontSize = 14.sp)
     }
 }
 

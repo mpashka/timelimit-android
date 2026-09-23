@@ -59,7 +59,7 @@ sealed interface AppAccess {
 sealed interface CloseReason {
     data object LimitOver : CloseReason
     data class ExtraTimeLater(val extraTime: Long) : CloseReason
-    data class Mode(val name: String?) : CloseReason
+    data class Mode(val kind: ModeKind?) : CloseReason
     data object ClosedByParent : CloseReason
     data class Break(val playLength: Long, val breakLength: Long) : CloseReason
     data object NewApp : CloseReason
@@ -104,4 +104,25 @@ data class CategoryToday(
 
 data class WaitingRequest(val app: App, val sentAt: Long)
 
-data class ModeWindow(val name: String?, val from: Long, val until: Long)
+/** A mode recognised by its shape (docs/specification/ui-contract.md, «режим»); null — some other closed time. */
+enum class ModeKind {
+    Sleep, Study;
+
+    companion object {
+        private const val DAY_END = 24 * 60 - 1
+        private const val EVENING = 18 * 60
+        private const val MORNING = 5 * 60
+
+        /**
+         * Modes are recognised by shape, as the web console does (timelimit-parent/src/shared/schedules.ts):
+         * sleep runs past midnight or up to it from the evening, study lies within the day. [end] is inclusive.
+         */
+        fun of(start: Int, end: Int): ModeKind? = when {
+            start > end || (end == DAY_END && start >= EVENING) -> Sleep
+            start >= MORNING && end < EVENING -> Study
+            else -> null
+        }
+    }
+}
+
+data class ModeWindow(val kind: ModeKind?, val from: Long, val until: Long)

@@ -786,6 +786,15 @@ object LocalDatabaseParentActionDispatcher {
 
                     Unit
                 }
+                // @tag:app-allowance
+                is SetAppAllowanceAction -> {
+                    val user = database.user().getUserByIdSync(action.userId) ?: throw IllegalArgumentException("user not found")
+
+                    database.user().updateUserSync(user.copy(
+                        appAllowances = user.appAllowances.filterNot { it.packageName == action.packageName } +
+                                listOfNotNull(AppAllowance(action.packageName, action.until).takeIf { action.until != 0L })
+                    ))
+                }
                 // @tag:app-rule
                 is SetAppRuleAction -> {
                     val user = database.user().getUserByIdSync(action.userId) ?: throw IllegalArgumentException("user not found")

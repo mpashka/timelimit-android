@@ -26,6 +26,17 @@ import io.timelimit.android.sync.actions.apply.ApplyActionParentDeviceAuthentica
 import io.timelimit.android.sync.actions.apply.ApplyActionUtil
 import io.timelimit.android.sync.network.api.AppUsageRow
 import io.timelimit.api.AnsweredLine
+import io.timelimit.android.sync.actions.RemoveCategoryAppsAction
+import io.timelimit.android.sync.actions.SetCategoryExtraTimeAction
+import io.timelimit.android.sync.actions.SetAppAllowanceAction
+import io.timelimit.android.sync.actions.UpdateUserUrlFilterAction
+import io.timelimit.android.data.model.UserUrlFilter
+import io.timelimit.api.Undo
+import io.timelimit.api.Sites
+import io.timelimit.api.ScheduleSpec
+import io.timelimit.api.ScheduleLine
+import io.timelimit.api.ChildRef
+import io.timelimit.api.CannotAct
 import io.timelimit.api.App
 import io.timelimit.api.AppRuleLine
 import io.timelimit.api.AppTime
@@ -79,16 +90,22 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
 
     private val tick = flow { while (true) { emit(Unit); delay(15_000) } }
     private val refresh = MutableStateFlow(0)
-    private val usage = MutableStateFlow<Pair<Long, Result<List<AppUsageRow>>>?>(null)
+    private val usage = MutableStateFlow<Triple<String, Long, Result<List<AppUsageRow>>>?>(null)
+    private val selectedChild = MutableStateFlow<String?>(null)
+
+    override fun selectChild(childId: String) {
+        selectedChild.value = childId
+        refresh.value++
+    }
 
     override val home: Flow<ParentHome> = combine(
         logic.database.user().getAllUsersFlow(),
         logic.database.device().getAllDevicesFlow(),
         logic.database.app().getAllApps().asFlow(),
         logic.deviceStates,
-        combine(tick, refresh, usage) { _, _, usage -> usage }
-    ) { users, devices, apps, states, usage ->
-        computeHome(users, devices, apps.associate { it.packageName to it.title }, states, usage)
+        combine(tick, refresh, usage, selectedChild) { _, _, usage, selected -> usage to selected }
+    ) { users, devices, apps, states, (usage, selected) ->
+        computeHome(users, devices, apps.associate { it.packageName to it.title }, states, usage, selected)
     }.distinctUntilChanged().flowOn(Dispatchers.IO)
 
     override val parentCode: Flow<ParentCodeNow?> = flow {
@@ -107,10 +124,10 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
     private fun ownDevice(devices: List<Device>): Device? =
         logic.database.config().getOwnDeviceIdSync()?.let { id -> devices.find { it.id == id } }
 
-    private fun cannotAct(users: List<User>, device: Device?): String? = when {
-        device == null -> "Телефон не подключён к семье"
-        users.find { it.id == device.currentUserId }?.type != UserType.Parent -> "На этом телефоне сейчас не родитель"
-        !device.isUserKeptSignedIn -> "Телефон не хранит вход родителя: войдите в старом интерфейсе с галкой «Don't ask again at this device»"
+    private fun cannotAct(users: List<User>, device: Device?): CannotAct? = when {
+        device == null -> CannotAct.NotConnected
+        users.find { it.id == device.currentUserId }?.type != UserType.Parent -> CannotAct.NotParent
+        !device.isUserKeptSignedIn -> CannotAct.NotKeptSignedIn
         else -> null
     }
 
@@ -120,7 +137,7 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
             server.api.getAppUsage(server.deviceAuthToken, parentId, "device", childId, today - 6, today)
         }
 
-        usage.value = now() to result
+        usage.value = Triple(childId, now(), result)
     }
 
     private suspend fun computeHome(
@@ -128,13 +145,16 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
         devices: List<Device>,
         titles: Map<String, String>,
         states: List<io.timelimit.android.data.model.DeviceState>,
-        usage: Pair<Long, Result<List<AppUsageRow>>>?,
+        loaded: Triple<String, Long, Result<List<AppUsageRow>>>?,
+        selected: String?,
     ): ParentHome {
         val device = ownDevice(devices)
         val cannotAct = cannotAct(users, device)
-        // ponytail: the first child only; a switcher in the header when a family has more
-        val child = users.firstOrNull { it.type == UserType.Child } ?: return ParentHome(cannotAct, null)
-        val data = logic.database.derivedDataDao().getUserRelatedDataSync(child.id) ?: return ParentHome(cannotAct, null)
+        val children = users.filter { it.type == UserType.Child }
+        val refs = children.map { ChildRef(it.id, it.name) }
+        val child = children.find { it.id == selected } ?: children.firstOrNull() ?: return ParentHome(cannotAct, refs, null)
+        val data = logic.database.derivedDataDao().getUserRelatedDataSync(child.id) ?: return ParentHome(cannotAct, refs, null)
+        val usage = loaded?.takeIf { it.first == child.id }?.let { it.second to it.third }
         val now = now()
         val zone = data.timeZone.toZoneId()
         val today = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
@@ -154,14 +174,16 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
         val minuteStart = now - now % MINUTE
         val sorted = data.sortedCategories()
         val categories = sorted.map { (depth, category) -> parentCategory(category, depth, cache, todayEpoch, today, nowMinute, minuteStart, now) }
-        val refs = categories.map { it.ref }
+        val categoryRefs = categories.map { it.ref }
 
-        val windows = data.categories.filter { it.category.parentCategoryId.isEmpty() }.map { it.category.blockedMinutesInWeek.dataNotToModify }
+        val windows = data.categories.filter { it.category.parentCategoryId.isEmpty() }.map { Schedules.blockedMinutes(it) }
         val modeNow = windows.filter { it[nowMinute] }
-            .mapNotNull { ModeClock.minutesUntilOpen(it, nowMinute) }.minOrNull()
-            ?.let { ModeWindow(null, minuteStart, minuteStart + it * MINUTE) }
-        val nextMode = windows.mapNotNull { ModeClock.nextWindow(it, nowMinute, ModeClock.DAY) }.minByOrNull { it.first }
-            ?.let { (start, length) -> ModeWindow(null, minuteStart + start * MINUTE, minuteStart + (start + length) * MINUTE) }
+            .mapNotNull { bits -> ModeClock.minutesUntilOpen(bits, nowMinute)?.let { it to bits } }.minByOrNull { it.first }
+            ?.let { (length, bits) -> ModeWindow(Schedules.kindAt(bits, nowMinute)?.toApi(), minuteStart, minuteStart + length * MINUTE) }
+        val nextMode = windows.mapNotNull { bits -> ModeClock.nextWindow(bits, nowMinute, ModeClock.DAY)?.let { it to bits } }.minByOrNull { it.first.first }
+            ?.let { (window, bits) ->
+                ModeWindow(Schedules.kindAt(bits, nowMinute + window.first)?.toApi(), minuteStart + window.first * MINUTE, minuteStart + (window.first + window.second) * MINUTE)
+            }
         val midnight = today.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
         val morning = modeNow?.until ?: nextMode?.until ?: (midnight + 7 * 60 * MINUTE)
         val dayEnd = nextMode?.from?.takeIf { it < midnight } ?: midnight
@@ -171,7 +193,7 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
             rows != null -> {
                 val categoryOf = { packageName: String ->
                     data.categoryApps.find { it.appSpecifier.packageName == packageName }?.categoryId
-                        ?.let { id -> refs.find { it.id == id }?.title }
+                        ?.let { id -> categoryRefs.find { it.id == id }?.title }
                 }
                 fun lines(filter: (AppUsageRow) -> Boolean) = rows.filter(filter).groupBy { it.packageName }
                     .map { (packageName, items) ->
@@ -188,8 +210,8 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
                     }
                 )
             }
-            usage == null -> AppUsage.Unknown("загружаем…")
-            else -> AppUsage.Unknown("сервер не отдал время по приложениям: ${usage.second.exceptionOrNull()?.message ?: "нет связи"}")
+            usage == null -> AppUsage.Loading
+            else -> AppUsage.Failed(usage.second.exceptionOrNull()?.message ?: "")
         }
         val usageToday = (appUsage as? AppUsage.Known)?.today.orEmpty()
 
@@ -223,7 +245,22 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
             TabletLine(tablet.name, state != null && now - state.seen < ONLINE, state?.seen ?: 0, state?.app?.takeIf { it.isNotEmpty() }?.let { app(it) })
         }
 
-        return ParentHome(cannotAct, ChildHome(
+        val bans = Schedules.readBans(data.categories)
+        val schedules = Schedules.Kind.entries.map { kind ->
+            val ofKind = bans.filter { Schedules.kindOf(it.start, it.end) == kind }
+            val main = ofKind.maxByOrNull { it.categoryIds.size }
+            val spec = main ?: Schedules.defaults.getValue(kind).copy(categoryIds = Schedules.defaultCategories(kind, data.categories))
+
+            ScheduleLine(
+                kind = kind.toApi(),
+                on = main != null,
+                spec = ScheduleSpec(spec.start, spec.end, spec.days, ofKind.flatMap { it.categoryIds }.distinct().ifEmpty { spec.categoryIds }),
+                window = listOfNotNull(modeNow, nextMode).firstOrNull { it.kind == kind.toApi() },
+                exceptions = ofKind.size - 1,
+            )
+        }
+
+        return ParentHome(cannotAct, refs, ChildHome(
             id = child.id,
             name = child.name,
             now = now,
@@ -232,11 +269,16 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
             morning = morning,
             dayEnd = dayEnd,
             usage = appUsage,
-            newApps = child.newApps.map { NewAppLine(app(it.packageName), it.installedAt, tabletName(it.deviceId), guessCategory(it.section, refs)) },
+            newApps = child.newApps.map { NewAppLine(app(it.packageName), it.installedAt, tabletName(it.deviceId), guessCategory(it.section, categoryRefs)) },
             categories = categories,
             requests = requests,
             answeredToday = answered,
             tablets = tablets,
+            schedules = schedules,
+            otherBans = bans.count { Schedules.kindOf(it.start, it.end) == null },
+            sites = if (logic.database.config().getServerApiLevelSync() >= UpdateUserUrlFilterAction.MIN_SERVER_API_LEVEL)
+                (child.urlFilter ?: UserUrlFilter(false, emptyList(), emptyList())).let { Sites(it.enabled, it.allow, it.block) }
+            else null,
         ))
     }
 
@@ -245,7 +287,7 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
         todayEpoch: Int, today: LocalDate, nowMinute: Int, minuteStart: Long, now: Long,
     ): ParentCategory {
         val handling = cache.get(category.category.id)
-        val blocked = category.category.blockedMinutesInWeek.dataNotToModify
+        val blocked = Schedules.blockedMinutes(category)
         val dayBit = 1 shl (today.dayOfWeek.value - 1)
         val limit = category.rules.filter { it.appliesToWholeDay && it.dayMask.toInt() and dayBit != 0 && it.maximumTimeInMillis > 0 }
             .minOfOrNull { it.maximumTimeInMillis.toLong() }
@@ -279,55 +321,120 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
         refresh.value++
     }
 
+    private fun undoWith(actions: List<ParentAction>): Undo? =
+        if (actions.isEmpty()) null else Undo { dispatch(actions) }
+
     private suspend fun childData(): UserRelatedData? = withContext(Dispatchers.IO) {
-        logic.database.user().getAllUsersSync().firstOrNull { it.type == UserType.Child }
+        val children = logic.database.user().getAllUsersSync().filter { it.type == UserType.Child }
+
+        (children.find { it.id == selectedChild.value } ?: children.firstOrNull())
             ?.let { logic.database.derivedDataDao().getUserRelatedDataSync(it.id) }
     }
 
-    override suspend fun addTime(categoryId: String, minutes: Int) {
-        val data = childData() ?: return
-        val category = data.categoryById[categoryId]?.category ?: return
+    override suspend fun addTime(categoryId: String, minutes: Int): Undo? {
+        val data = childData() ?: return null
+        val category = data.categoryById[categoryId] ?: return null
         val now = now()
-        val duringMode = category.blockedMinutesInWeek.dataNotToModify[getMinuteOfWeek(now, data.timeZone)] || category.temporarilyBlocked
+        val day = Instant.ofEpochMilli(now).atZone(data.timeZone.toZoneId()).toLocalDate().toEpochDay().toInt()
+        val duringMode = Schedules.blockedMinutes(category)[getMinuteOfWeek(now, data.timeZone)] || category.category.temporarilyBlocked
+        val base = category.category
 
-        dispatch(listOf(
-            if (duringMode) UpdateCategoryDisableLimitsAction(categoryId, category.disableLimitsUntil.coerceAtLeast(now) + minutes * MINUTE)
-            else IncrementCategoryExtraTimeAction(
-                categoryId, minutes * MINUTE,
-                Instant.ofEpochMilli(now).atZone(data.timeZone.toZoneId()).toLocalDate().toEpochDay().toInt()
-            )
-        ))
+        return if (duringMode) {
+            dispatch(listOf(UpdateCategoryDisableLimitsAction(categoryId, base.disableLimitsUntil.coerceAtLeast(now) + minutes * MINUTE)))
+            undoWith(listOf(UpdateCategoryDisableLimitsAction(categoryId, base.disableLimitsUntil)))
+        } else {
+            dispatch(listOf(IncrementCategoryExtraTimeAction(categoryId, minutes * MINUTE, day)))
+            undoWith(listOf(SetCategoryExtraTimeAction(categoryId, base.getExtraTime(day), day)))
+        }
     }
 
-    override suspend fun closeCategory(categoryId: String, until: Long) {
+    private fun restoreBlocked(category: io.timelimit.android.data.model.Category) = UpdateCategoryTemporarilyBlockedAction(
+        category.id, category.temporarilyBlocked, category.temporarilyBlockedEndTime.takeIf { category.temporarilyBlocked && it != 0L }
+    )
+
+    override suspend fun closeCategory(categoryId: String, until: Long): Undo? {
+        val category = childData()?.categoryById?.get(categoryId)?.category ?: return null
+
         dispatch(listOf(UpdateCategoryTemporarilyBlockedAction(categoryId, true, until)))
+        return undoWith(listOf(restoreBlocked(category)))
     }
 
     // the same as the web console: every top-level category of the child
-    override suspend fun closeAll(until: Long) {
-        val data = childData() ?: return
+    override suspend fun closeAll(until: Long): Undo? {
+        val roots = childData()?.categories?.filter { it.category.parentCategoryId.isEmpty() }?.map { it.category } ?: return null
 
-        dispatch(data.categories.filter { it.category.parentCategoryId.isEmpty() }
-            .map { UpdateCategoryTemporarilyBlockedAction(it.category.id, true, until) })
+        dispatch(roots.map { UpdateCategoryTemporarilyBlockedAction(it.id, true, until) })
+        return undoWith(roots.map { restoreBlocked(it) })
     }
 
-    override suspend fun answer(requestId: String, scope: GrantScope, until: Long) {
+    override suspend fun answer(requestId: String, scope: GrantScope, until: Long): Undo? {
+        val data = childData() ?: return null
+        val request = data.user.childRequests.find { it.id == requestId } ?: return null
+
         dispatch(listOf(AnswerChildRequestAction(
             requestId, if (scope == GrantScope.App) ChildRequestAnswer.KIND_APP else ChildRequestAnswer.KIND_CATEGORY, until, ""
         )))
+
+        // the answer itself stays (the first answer is final), what it opened is closed again
+        return when (scope) {
+            GrantScope.App -> undoWith(listOf(SetAppAllowanceAction(
+                data.user.id, request.packageName,
+                data.user.appAllowances.filter { it.packageName == request.packageName }.maxOfOrNull { it.until } ?: 0
+            )))
+            GrantScope.Category -> data.categoryById[request.categoryId.ifEmpty { data.user.categoryForNotAssignedApps }]?.category
+                ?.let { undoWith(listOf(UpdateCategoryDisableLimitsAction(it.id, it.disableLimitsUntil))) }
+        }
     }
 
-    override suspend fun deny(requestId: String) {
+    override suspend fun deny(requestId: String): Undo? {
         dispatch(listOf(AnswerChildRequestAction(requestId, ChildRequestAnswer.KIND_DENY, 0, "")))
+        return null
     }
 
-    override suspend fun moveApp(packageName: String, categoryId: String) {
+    override suspend fun moveApp(packageName: String, categoryId: String): Undo? {
+        val data = childData() ?: return null
+        val previous = data.categoryApps.filter { it.appSpecifier.packageName == packageName }.map { it.categoryId }.distinct()
+
         dispatch(listOf(AddCategoryAppsAction(categoryId, listOf(packageName))))
+        return undoWith(
+            if (previous.isEmpty()) listOf(RemoveCategoryAppsAction(categoryId, listOf(packageName)))
+            else previous.map { AddCategoryAppsAction(it, listOf(packageName)) }
+        )
     }
 
-    override suspend fun setAppRule(packageName: String, days: Int, limitMinutes: Int) {
-        val data = childData() ?: return
+    override suspend fun setAppRule(packageName: String, days: Int, limitMinutes: Int): Undo? {
+        val data = childData() ?: return null
+        val old = data.user.appRules.find { it.packageName == packageName }
 
         dispatch(listOf(SetAppRuleAction(data.user.id, packageName, days, limitMinutes)))
+        return undoWith(listOf(SetAppRuleAction(data.user.id, packageName, old?.days ?: 127, old?.limitMinutes ?: -1)))
+    }
+
+    // @tag:ban-schedule
+    override suspend fun setSchedule(kind: io.timelimit.api.ModeKind, schedule: ScheduleSpec?): Undo? {
+        val data = childData() ?: return null
+        val own = if (kind == io.timelimit.api.ModeKind.Sleep) Schedules.Kind.Sleep else Schedules.Kind.Study
+        val previous = Schedules.readBans(data.categories).filter { Schedules.kindOf(it.start, it.end) == own }
+        val wanted = listOfNotNull(schedule?.let {
+            val hard = previous.firstOrNull()?.hard ?: true
+            Schedules.Ban(it.days, it.start, it.end, hard, it.categoryIds, emptyList())
+        })
+
+        if (wanted.any { Schedules.kindOf(it.start, it.end) != own || it.categoryIds.isEmpty() }) throw IllegalArgumentException("not a ${own.name} time")
+
+        dispatch(Schedules.setActions(own, data.categories, wanted))
+
+        return Undo {
+            childData()?.let { now -> dispatch(Schedules.setActions(own, now.categories, previous)) }
+        }
+    }
+
+    // @tag:url-filter
+    override suspend fun setSites(sites: Sites): Undo? {
+        val data = childData() ?: return null
+        val old = data.user.urlFilter ?: UserUrlFilter(false, emptyList(), emptyList())
+
+        dispatch(listOf(UpdateUserUrlFilterAction(data.user.id, UserUrlFilter(sites.enabled, sites.allow, sites.block))))
+        return undoWith(listOf(UpdateUserUrlFilterAction(data.user.id, old)))
     }
 }

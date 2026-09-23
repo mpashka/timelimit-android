@@ -33,6 +33,7 @@ class ParentActivity : ComponentActivity() {
                 api = ParentApiOverLogic.with(this),
                 startOnRequests = intent.getBooleanExtra(EXTRA_REQUESTS, false),
                 openOldInterface = { startActivity(UiChoice.oldMainIntent(this)); finish() },
+                signIn = { startActivity(UiChoice.signInIntent(this)); finish() },
             )
         }
     }

@@ -17,6 +17,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.BottomNavigation
+import androidx.compose.material.Button
+import androidx.compose.material.DropdownMenu
+import androidx.compose.material.DropdownMenuItem
+import androidx.compose.material.SnackbarDuration
+import androidx.compose.material.SnackbarResult
 import androidx.compose.material.BottomNavigationItem
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
@@ -49,7 +54,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.timelimit.api.CannotAct
 import io.timelimit.api.ChildHome
+import io.timelimit.api.ChildRef
+import io.timelimit.api.Undo
 import io.timelimit.api.ParentApi
 import io.timelimit.api.ParentCodeNow
 import io.timelimit.ui.R
@@ -65,15 +73,15 @@ enum class ParentTab(val title: Int, val icon: ImageVector) {
     Tablets(R.string.parent_tab_tablets, Icons.Default.Phone),
 }
 
-/** Performs a command and says its outcome in the snackbar — reversible actions are not confirmed. */
-class ParentActions(private val run: (String, suspend () -> Unit) -> Unit) {
-    operator fun invoke(done: String, block: suspend () -> Unit) = run(done, block)
+/** Performs a command and says its outcome with «Отменить» — reversible actions are not confirmed, they are undone. */
+class ParentActions(private val run: (String, suspend () -> Undo?) -> Unit) {
+    operator fun invoke(done: String, block: suspend () -> Undo?) = run(done, block)
 }
 
 /** The parent's phone (docs/specification/parent-ui.md): header, bottom bar, one column. */
 // @tag:new-ui
 @Composable
-fun ParentScreen(api: ParentApi, startOnRequests: Boolean, openOldInterface: () -> Unit) {
+fun ParentScreen(api: ParentApi, startOnRequests: Boolean, openOldInterface: () -> Unit, signIn: () -> Unit) {
     val home by api.home.collectAsState(initial = null)
     val code by api.parentCode.collectAsState(initial = null)
     var tab by rememberSaveable { mutableStateOf(ParentTab.Today) }
@@ -81,8 +89,17 @@ fun ParentScreen(api: ParentApi, startOnRequests: Boolean, openOldInterface: () 
     var openApp by rememberSaveable { mutableStateOf<String?>(null) }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val undoLabel = stringResource(R.string.parent_undo)
+    val undone = stringResource(R.string.parent_undone)
+    val failed = stringResource(R.string.parent_action_failed)
     val actions = remember {
-        ParentActions { done, block -> scope.launch { block(); snackbar.showSnackbar(done) } }
+        ParentActions { done, block ->
+            scope.launch {
+                val undo = try { block() } catch (ex: Exception) { snackbar.showSnackbar(failed.format(ex.message ?: "")); return@launch }
+                val result = snackbar.showSnackbar(done, actionLabel = undo?.let { undoLabel }, duration = SnackbarDuration.Short)
+                if (result == SnackbarResult.ActionPerformed && undo != null) { undo.undo(); snackbar.showSnackbar(undone) }
+            }
+        }
     }
 
     ChildTheme {
@@ -92,7 +109,7 @@ fun ParentScreen(api: ParentApi, startOnRequests: Boolean, openOldInterface: () 
         Scaffold(
             modifier = Modifier.safeDrawingPadding(),
             scaffoldState = androidx.compose.material.rememberScaffoldState(snackbarHostState = snackbar),
-            topBar = { Header(child, code, child?.requests?.size ?: 0, onBell = { requestsOpen = !requestsOpen; openApp = null }) },
+            topBar = { Header(child, home?.children.orEmpty(), api::selectChild, code, child?.requests?.size ?: 0, onBell = { requestsOpen = !requestsOpen; openApp = null }) },
             bottomBar = {
                 BottomNavigation(backgroundColor = colors.surface, contentColor = colors.action) {
                     ParentTab.entries.forEach { item ->
@@ -111,7 +128,7 @@ fun ParentScreen(api: ParentApi, startOnRequests: Boolean, openOldInterface: () 
                 Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                home?.cannotAct?.let { Text(it, color = colors.refused, fontSize = 14.sp) }
+                home?.cannotAct?.let { CannotActCard(it, signIn) }
 
                 when {
                     home == null -> {}
@@ -124,7 +141,8 @@ fun ParentScreen(api: ParentApi, startOnRequests: Boolean, openOldInterface: () 
                     }
                     tab == ParentTab.Apps -> AppsScreen(child, api, actions, onApp = { openApp = it })
                     tab == ParentTab.Tablets -> TabletsScreen(child)
-                    else -> OldInterfaceHint(openOldInterface)
+                    tab == ParentTab.Modes -> ModesScreen(child, api, actions)
+                    tab == ParentTab.Sites -> SitesScreen(child, api, actions)
                 }
             }
         }
@@ -132,9 +150,10 @@ fun ParentScreen(api: ParentApi, startOnRequests: Boolean, openOldInterface: () 
 }
 
 @Composable
-private fun Header(child: ChildHome?, code: ParentCodeNow?, waiting: Int, onBell: () -> Unit) {
+private fun Header(child: ChildHome?, children: List<ChildRef>, select: (String) -> Unit, code: ParentCodeNow?, waiting: Int, onBell: () -> Unit) {
     val colors = LocalChildColors.current
     var showCode by remember { mutableStateOf(false) }
+    var choosing by remember { mutableStateOf(false) }
 
     TopAppBar(backgroundColor = colors.surface, contentColor = colors.text) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -142,7 +161,17 @@ private fun Header(child: ChildHome?, code: ParentCodeNow?, waiting: Int, onBell
                 Text(child?.name?.take(1) ?: "", color = Color.White, fontWeight = FontWeight.Bold)
             }
             Spacer(Modifier.width(8.dp))
-            Text(child?.name ?: "", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            Box(Modifier.weight(1f)) {
+                Text(
+                    (child?.name ?: "") + if (children.size > 1) " ▾" else "", fontSize = 18.sp, fontWeight = FontWeight.SemiBold,
+                    modifier = if (children.size > 1) Modifier.clickable { choosing = true } else Modifier
+                )
+                DropdownMenu(expanded = choosing, onDismissRequest = { choosing = false }) {
+                    children.forEach { other ->
+                        DropdownMenuItem(onClick = { choosing = false; select(other.id) }) { Text(other.name) }
+                    }
+                }
+            }
 
             if (code != null) {
                 if (showCode) Text(
@@ -165,7 +194,18 @@ private fun Header(child: ChildHome?, code: ParentCodeNow?, waiting: Int, onBell
 }
 
 @Composable
-private fun OldInterfaceHint(openOldInterface: () -> Unit) {
-    Text(stringResource(R.string.parent_not_yet), color = LocalChildColors.current.secondary)
-    TextButton(onClick = openOldInterface) { Text(stringResource(R.string.parent_open_old)) }
+private fun CannotActCard(cannotAct: CannotAct, signIn: () -> Unit) {
+    val colors = LocalChildColors.current
+
+    Card {
+        Text(
+            stringResource(when (cannotAct) {
+                CannotAct.NotConnected -> R.string.parent_cannot_not_connected
+                CannotAct.NotParent -> R.string.parent_cannot_not_parent
+                CannotAct.NotKeptSignedIn -> R.string.parent_cannot_not_kept
+            }),
+            color = colors.refused, fontSize = 14.sp
+        )
+        if (cannotAct != CannotAct.NotConnected) Button(onClick = signIn) { Text(stringResource(R.string.parent_sign_in)) }
+    }
 }

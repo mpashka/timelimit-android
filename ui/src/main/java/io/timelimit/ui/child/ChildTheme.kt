@@ -133,3 +133,11 @@ private fun loadIcon(context: Context, packageName: String): Bitmap? = try {
 } catch (_: PackageManager.NameNotFoundException) {
     null
 }
+
+@Composable
+fun modeName(kind: io.timelimit.api.ModeKind): String = stringResource(
+    when (kind) {
+        io.timelimit.api.ModeKind.Sleep -> R.string.mode_sleep
+        io.timelimit.api.ModeKind.Study -> R.string.mode_study
+    }
+)

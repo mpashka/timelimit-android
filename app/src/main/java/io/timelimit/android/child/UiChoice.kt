@@ -24,11 +24,31 @@ object UiChoice {
     }
 
     private const val EXTRA_STAY_OLD = "stayInOldInterface"
+    private const val EXTRA_SIGN_IN = "signInKeepingIt"
+
+    /** The upstream sign-in with «don't ask again at this device» ticked; back to the parent's screens once it holds. */
+    fun signInIntent(context: Context): Intent = oldMainIntent(context).putExtra(EXTRA_SIGN_IN, true)
 
     fun oldMainIntent(context: Context): Intent = Intent(context, MainActivity::class.java).putExtra(EXTRA_STAY_OLD, true)
 
     /** The launcher opens [MainActivity]; with the new interface a parent is sent on to [ParentActivity] once the user is known. */
-    fun redirectParent(activity: ComponentActivity, isFreshStart: Boolean) {
+    fun redirectParent(activity: ComponentActivity, isFreshStart: Boolean, showSignIn: () -> Unit) {
+        if (activity.intent.getBooleanExtra(EXTRA_SIGN_IN, false)) {
+            if (isFreshStart) showSignIn()
+
+            val logic = DefaultAppLogic.with(activity)
+            var done = false
+            logic.deviceEntry.observe(activity) { device ->
+                if (!done && device?.isUserKeptSignedIn == true && logic.deviceUserEntry.value?.type == UserType.Parent) {
+                    done = true
+                    activity.startActivity(Intent(activity, ParentActivity::class.java))
+                    activity.finish()
+                }
+            }
+            logic.deviceUserEntry.observe(activity) {}
+            return
+        }
+
         if (!isFreshStart || activity.intent.getBooleanExtra(EXTRA_STAY_OLD, false) || !isNew(activity)) return
 
         var done = false

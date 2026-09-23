@@ -156,7 +156,7 @@ private fun BigTime(label: String, time: String, color: Color) {
 private fun reasonText(reason: CloseReason, category: String, app: String): String = when (reason) {
     CloseReason.LimitOver -> stringResource(R.string.child_reason_limit_over, category)
     is CloseReason.ExtraTimeLater -> stringResource(R.string.child_reason_extra_time_later, formatDuration(reason.extraTime))
-    is CloseReason.Mode -> reason.name?.let { stringResource(R.string.child_reason_mode_named, it) }
+    is CloseReason.Mode -> reason.kind?.let { stringResource(R.string.child_reason_mode_named, modeName(it)) }
         ?: stringResource(R.string.child_reason_mode)
     CloseReason.ClosedByParent -> stringResource(R.string.child_reason_closed_by_parent, category)
     is CloseReason.Break -> stringResource(

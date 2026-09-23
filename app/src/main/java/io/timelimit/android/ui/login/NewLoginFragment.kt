@@ -50,6 +50,12 @@ import io.timelimit.android.ui.view.KeyboardViewListener
 class NewLoginFragment: DialogFragment() {
     companion object {
         const val SHOW_ON_LOCKSCREEN = "showOnLockscreen"
+        private const val KEEP_SIGNED_IN = "keepSignedIn"
+
+        // @tag:new-ui
+        fun keepingSignedIn() = NewLoginFragment().apply {
+            arguments = Bundle().apply { putBoolean(KEEP_SIGNED_IN, true) }
+        }
 
         fun newInstance(showOnLockscreen: Boolean) = NewLoginFragment().apply {
             arguments = Bundle().apply {
@@ -137,8 +143,9 @@ class NewLoginFragment: DialogFragment() {
         adapter.listener = object: LoginUserAdapterListener {
             override fun onUserClicked(user: User) {
                 // reset parent password view
-                binding.enterPassword.checkAssignMyself.isChecked = false
-                binding.enterPassword.checkDontAskAgain.isChecked = false
+                val keepSignedIn = arguments?.getBoolean(KEEP_SIGNED_IN, false) ?: false
+                binding.enterPassword.checkAssignMyself.isChecked = keepSignedIn
+                binding.enterPassword.checkDontAskAgain.isChecked = keepSignedIn
                 binding.enterPassword.password.setText("")
 
                 // go to the next step

@@ -52,7 +52,7 @@ fun WhatCan(today: Today) {
         Text(stringResource(R.string.child_what_can_title), color = colors.text, fontSize = 30.sp, fontWeight = FontWeight.Bold)
         today.nextMode?.let { mode ->
             Text(
-                if (mode.name != null) stringResource(R.string.child_mode_next_named, formatClock(mode.from), mode.name!!, formatClock(mode.until))
+                if (mode.kind != null) stringResource(R.string.child_mode_next_named, formatClock(mode.from), modeName(mode.kind!!), formatClock(mode.until))
                 else stringResource(R.string.child_mode_next, formatClock(mode.from), formatClock(mode.until)),
                 color = colors.secondary, fontSize = 16.sp
             )

@@ -10,35 +10,62 @@ import kotlinx.coroutines.flow.Flow
 interface ParentApi {
     val home: Flow<ParentHome>
 
+    fun selectChild(childId: String)
+
     /** The code of docs/specification/protocol-new-ui.md, section 7; null — the server gave no secret yet. */
     // @tag:parent-code
     val parentCode: Flow<ParentCodeNow?>
 
     /** "+N": adds to the limit, or during a mode opens the category over it. */
-    suspend fun addTime(categoryId: String, minutes: Int)
+    suspend fun addTime(categoryId: String, minutes: Int): Undo?
 
-    suspend fun closeCategory(categoryId: String, until: Long)
+    suspend fun closeCategory(categoryId: String, until: Long): Undo?
 
-    suspend fun closeAll(until: Long)
-
-    // @tag:child-request
-    suspend fun answer(requestId: String, scope: GrantScope, until: Long)
+    suspend fun closeAll(until: Long): Undo?
 
     // @tag:child-request
-    suspend fun deny(requestId: String)
+    suspend fun answer(requestId: String, scope: GrantScope, until: Long): Undo?
+
+    // @tag:child-request
+    suspend fun deny(requestId: String): Undo?
 
     // @tag:new-app
-    suspend fun moveApp(packageName: String, categoryId: String)
+    suspend fun moveApp(packageName: String, categoryId: String): Undo?
 
     // @tag:app-rule
-    suspend fun setAppRule(packageName: String, days: Int, limitMinutes: Int)
+    suspend fun setAppRule(packageName: String, days: Int, limitMinutes: Int): Undo?
+
+    /** null — the mode is off. */
+    // @tag:ban-schedule
+    suspend fun setSchedule(kind: ModeKind, schedule: ScheduleSpec?): Undo?
+
+    // @tag:url-filter
+    suspend fun setSites(sites: Sites): Undo?
 }
+
+/** Puts back what a command changed; null from a command — it can not be undone (a denial is final). */
+fun interface Undo {
+    suspend fun undo()
+}
+
+enum class CannotAct { NotConnected, NotParent, NotKeptSignedIn }
+
+data class ChildRef(val id: String, val name: String)
+
+/** [end] is inclusive, `start > end` runs past midnight, days bit 0 is Monday. */
+data class ScheduleSpec(val start: Int, val end: Int, val days: Int, val categoryIds: List<String>)
+
+data class ScheduleLine(val kind: ModeKind, val on: Boolean, val spec: ScheduleSpec, val window: ModeWindow?, val exceptions: Int)
+
+/** Chrome's filter of the child; "*" in [block] means only [allow] opens. */
+data class Sites(val enabled: Boolean, val allow: List<String>, val block: List<String>)
 
 data class ParentCodeNow(val code: String, val changesAt: Long)
 
 data class ParentHome(
-    /** null — actions work; otherwise why they do not, in words for the parent */
-    val cannotAct: String?,
+    /** null — actions work */
+    val cannotAct: CannotAct?,
+    val children: List<ChildRef>,
     val child: ChildHome?,
 )
 
@@ -58,12 +85,16 @@ data class ChildHome(
     val requests: List<ParentRequest>,
     val answeredToday: List<AnsweredLine>,
     val tablets: List<TabletLine>,
+    val schedules: List<ScheduleLine>,
+    val otherBans: Int,
+    /** null — the server does not keep a site filter */
+    val sites: Sites?,
 )
 
 sealed interface AppUsage {
     data class Known(val today: List<AppTime>, val week: List<AppTime>, val weekByDay: Map<String, List<Long>>) : AppUsage
-    /** Why there is no time per app, in words for the parent. */
-    data class Unknown(val why: String) : AppUsage
+    data object Loading : AppUsage
+    data class Failed(val message: String) : AppUsage
 }
 
 data class AppTime(val app: App, val ms: Long, val categoryTitle: String?, val rule: AppRuleLine?)
