@@ -82,7 +82,8 @@ object SetupLocalModePermissions {
                     },
                     showDetails = { permission -> updateState { it.copy(
                         currentDialog = State.Setup.DevicePermissions.SystemPermissionDialog(permission)
-                    ) } }
+                    ) } },
+                    offerWidget = true
                 ),
                 requestKeyMode = { updateState { it.copy(currentDialog = State.Setup.DevicePermissions.ParentKeyDialog) } },
                 next = { updateState { State.Setup.LocalMode(it) } },

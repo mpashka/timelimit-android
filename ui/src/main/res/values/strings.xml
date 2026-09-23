@@ -82,6 +82,13 @@
     <string name="child_outcome_refused">Отказано: %s</string>
     <string name="child_outcome_ask_again">Попросить снова можно с %s</string>
 
+    <string name="child_widget_offer_title">Виджет «Что можно»</string>
+    <string name="child_widget_offer_text">Ребёнок видит на рабочем столе, сколько осталось, не открывая TimeLimit.</string>
+    <string name="child_widget_offer_button">Поставить виджет</string>
+    <string name="child_widget_offer_confirm">Подтверди на экране, куда поставить виджет. Не появилось окно — поставь руками: долгое нажатие на пустое место рабочего стола → «Виджеты» → TimeLimit.</string>
+    <string name="child_widget_offer_by_hand">Этот рабочий стол не умеет ставить виджет по просьбе приложения. Поставь руками: долгое нажатие на пустое место рабочего стола → «Виджеты» → TimeLimit.</string>
+    <string name="child_widget_offer_placed">Виджет уже стоит на рабочем столе.</string>
+
     <string name="child_hours_minutes">%1$d ч %2$d мин</string>
     <string name="child_hours">%d ч</string>
     <string name="child_minutes">%d мин</string>

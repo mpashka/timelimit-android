@@ -32,6 +32,7 @@ fun PermissionScreen(
     ) {
         PermissionScreenPermissionList(content.status, content.showDetails)
         PermissionGoals(content.status)
+        if (content.offerWidget) io.timelimit.android.child.WidgetOffer() // @tag:new-ui
     }
 
     if (content.dialog != null) PermissionScreenDialog(content.dialog, content.status)

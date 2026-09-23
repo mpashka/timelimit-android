@@ -70,7 +70,8 @@ object ManageDevicePermissions {
                             close = { updateState { it.copy(currentDialog = null) } }
                         )
                     },
-                    showDetails = { permission -> updateState { it.copy(currentDialog = permission) } }
+                    showDetails = { permission -> updateState { it.copy(currentDialog = permission) } },
+                    offerWidget = isCurrentDevice
                 ),
                 parentBackStack
             )

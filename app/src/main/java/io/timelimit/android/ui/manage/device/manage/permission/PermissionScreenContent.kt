@@ -23,7 +23,9 @@ import io.timelimit.android.integration.platform.SystemPermission
 data class PermissionScreenContent(
     val status: Status,
     val dialog: Dialog?,
-    val showDetails: (SystemPermission) -> Unit
+    val showDetails: (SystemPermission) -> Unit,
+    // @tag:new-ui
+    val offerWidget: Boolean = false
 ) {
     data class Status(
         val notificationAccess: NewPermissionStatus,
