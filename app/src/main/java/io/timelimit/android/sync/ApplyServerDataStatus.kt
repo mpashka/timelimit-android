@@ -61,6 +61,7 @@ object ApplyServerDataStatus {
 
             var didCreateNewActions = false
             val answeredRequests = mutableListOf<AnsweredRequest>()
+            val newRequests = mutableListOf<NewRequest>()
 
             run {
                 val newUserList = status.newUserList
@@ -89,7 +90,8 @@ object ApplyServerDataStatus {
                                     urlFilter = newEntry.urlFilter,
                                     childRequests = newEntry.childRequests,
                                     appAllowances = newEntry.appAllowances,
-                                    appRules = newEntry.appRules
+                                    appRules = newEntry.appRules,
+                                    newApps = newEntry.newApps
                             )
 
                             val oldEntry = oldUserList.find { it.id == newData.id }
@@ -97,13 +99,17 @@ object ApplyServerDataStatus {
                             // @tag:child-request
                             val ownDeviceId = database.config().getOwnDeviceIdSync()
                             newData.childRequests
-                                .filter { request -> request.deviceId == ownDeviceId && request.answer != null }
+                                .filter { request -> request.answer != null }
                                 .filter { request -> oldEntry?.childRequests?.find { it.id == request.id }?.answer == null }
                                 .forEach { request ->
                                     answeredRequests.add(AnsweredRequest(
-                                        request, newUserList.data.find { it.id == request.answer!!.parentUserId }?.name ?: ""
+                                        request, newUserList.data.find { it.id == request.answer!!.parentUserId }?.name ?: "",
+                                        ownDevice = request.deviceId == ownDeviceId
                                     ))
                                 }
+                            newData.childRequests
+                                .filter { request -> request.answer == null && oldEntry?.childRequests?.none { it.id == request.id } != false }
+                                .forEach { request -> newRequests.add(NewRequest(request, newData)) }
 
                             if (oldEntry == null) {
                                 // create entry
@@ -655,7 +661,8 @@ object ApplyServerDataStatus {
             Result(
                 newDeviceTitles = newDeviceTitles,
                 didCreateNewActions = didCreateNewActions,
-                answeredRequests = answeredRequests
+                answeredRequests = answeredRequests,
+                newRequests = newRequests
             )
         }
     }
@@ -671,8 +678,10 @@ object ApplyServerDataStatus {
     data class Result (
         val newDeviceTitles: List<String>,
         val didCreateNewActions: Boolean,
-        val answeredRequests: List<AnsweredRequest>
+        val answeredRequests: List<AnsweredRequest>,
+        val newRequests: List<NewRequest>
     )
 
-    data class AnsweredRequest(val request: ChildRequest, val parentName: String)
+    data class AnsweredRequest(val request: ChildRequest, val parentName: String, val ownDevice: Boolean)
+    data class NewRequest(val request: ChildRequest, val child: User)
 }

@@ -15,6 +15,7 @@
  */
 package io.timelimit.android.sync
 
+import io.timelimit.android.child.ParentRequestNotification
 import io.timelimit.android.child.RequestOutcomeNotification
 import android.util.Log
 import android.widget.Toast
@@ -275,6 +276,8 @@ class SyncUtil (private val logic: AppLogic) {
         val applyResult = ApplyServerDataStatus.applyServerDataStatusCoroutine(serverResponse, logic.database, logic.platformIntegration)
         ApplyServerDataStatus.postNotifications(applyResult, logic.platformIntegration)
         RequestOutcomeNotification.show(logic.context, applyResult.answeredRequests) // @tag:child-request
+        ParentRequestNotification.show(logic, applyResult.newRequests, applyResult.answeredRequests) // @tag:child-request
+        serverResponse.deviceStates?.let { logic.deviceStates.value = it } // @tag:device-state
         val cryptoResult = CryptoSyncLogic.postPullHook(logic.database, serverResponse.pendingKeyRequests, serverResponse.keyResponses)
 
         serverResponse.pings.filter { it.type == ServerPing.Type.Pong }.forEach { pong ->

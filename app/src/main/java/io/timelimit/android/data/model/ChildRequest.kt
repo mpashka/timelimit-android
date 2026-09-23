@@ -59,7 +59,15 @@ data class AppAllowance(val packageName: String, val until: Long) {
 // @tag:app-rule
 data class AppRule(val packageName: String, val days: Int, val limitMinutes: Int, val usedDay: Int, val usedMs: Long)
 
-// @tag:child-request @tag:app-allowance @tag:app-rule
+/** `users.data[].newApps` of docs/specification/protocol-new-ui.md, section 5. */
+// @tag:new-app
+data class NewApp(val packageName: String, val title: String, val section: String, val installedAt: Long, val deviceId: String)
+
+/** `deviceStates` of section 6; comes with every sync and is kept only in memory. */
+// @tag:device-state
+data class DeviceState(val deviceId: String, val seen: Long, val app: String, val appSince: Long)
+
+// @tag:child-request @tag:app-allowance @tag:app-rule @tag:new-app @tag:device-state
 object ChildRequestJson {
     private fun nextStringOrEmpty(reader: JsonReader): String =
         if (reader.peek() == JsonToken.NULL) { reader.nextNull(); "" } else reader.nextString()
@@ -169,6 +177,50 @@ object ChildRequestJson {
         return result
     }
 
+    private fun <T> parseObjects(reader: JsonReader, item: (Map<String, Any>) -> T): List<T> {
+        val result = mutableListOf<T>()
+
+        reader.beginArray()
+        while (reader.hasNext()) {
+            val fields = mutableMapOf<String, Any>()
+
+            reader.beginObject()
+            while (reader.hasNext()) {
+                val name = reader.nextName()
+                when (reader.peek()) {
+                    JsonToken.STRING -> fields[name] = reader.nextString()
+                    JsonToken.NUMBER -> fields[name] = reader.nextLong()
+                    else -> reader.skipValue()
+                }
+            }
+            reader.endObject()
+
+            result.add(item(fields))
+        }
+        reader.endArray()
+
+        return result
+    }
+
+    fun parseNewApps(reader: JsonReader): List<NewApp> = parseObjects(reader) {
+        NewApp(it["packageName"] as String, it["title"] as? String ?: "", it["section"] as? String ?: "",
+            it["installedAt"] as? Long ?: 0, it["deviceId"] as? String ?: "")
+    }
+
+    fun parseDeviceStates(reader: JsonReader): List<DeviceState> = parseObjects(reader) {
+        DeviceState(it["deviceId"] as String, it["seen"] as? Long ?: 0, it["app"] as? String ?: "", it["appSince"] as? Long ?: 0)
+    }
+
+    fun serializeNewApps(apps: List<NewApp>, writer: JsonWriter) {
+        writer.beginArray()
+        apps.forEach {
+            writer.beginObject().name("packageName").value(it.packageName).name("title").value(it.title)
+                .name("section").value(it.section).name("installedAt").value(it.installedAt).name("deviceId").value(it.deviceId)
+                .endObject()
+        }
+        writer.endArray()
+    }
+
     fun serializeRules(rules: List<AppRule>, writer: JsonWriter) {
         writer.beginArray()
         rules.forEach {
@@ -238,4 +290,12 @@ class AppRuleListConverter {
 
     @TypeConverter
     fun toString(value: List<AppRule>): String = ChildRequestJson.write { ChildRequestJson.serializeRules(value, it) }
+}
+
+class NewAppListConverter {
+    @TypeConverter
+    fun fromString(value: String): List<NewApp> = ChildRequestJson.parseNewApps(JsonReader(StringReader(value)))
+
+    @TypeConverter
+    fun toString(value: List<NewApp>): String = ChildRequestJson.write { ChildRequestJson.serializeNewApps(value, it) }
 }

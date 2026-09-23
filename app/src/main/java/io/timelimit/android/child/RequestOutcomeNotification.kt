@@ -23,7 +23,7 @@ object RequestOutcomeNotification {
         val manager = context.getSystemService<NotificationManager>() ?: return
         NotificationChannels.createNotificationChannels(manager, context)
 
-        answered.forEach { (request, parentName) ->
+        answered.filter { it.ownDevice }.forEach { (request, parentName) ->
             val answer = request.answer ?: return@forEach
             val title = context.packageManager.runCatching {
                 getApplicationLabel(getApplicationInfo(request.packageName, 0)).toString()

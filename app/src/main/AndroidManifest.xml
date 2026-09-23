@@ -95,6 +95,11 @@
             tools:ignore="UnusedAttribute" />
 
         <activity
+            android:name=".child.ParentActivity"
+            android:exported="false"
+            android:taskAffinity=":main" />
+
+        <activity
             android:name=".child.WhatCanActivity"
             android:exported="false"
             android:taskAffinity=":whatcan" />
@@ -160,6 +165,7 @@
         <!-- system integration -->
 
         <receiver android:name=".child.ChildWarning$AskReceiver" android:exported="false" />
+        <receiver android:name=".child.ParentRequestNotification$AnswerReceiver" android:exported="false" />
 
         <receiver android:name=".integration.platform.android.receiver.BootReceiver" android:exported="false">
             <intent-filter>

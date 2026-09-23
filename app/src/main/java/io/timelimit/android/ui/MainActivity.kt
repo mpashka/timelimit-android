@@ -148,6 +148,7 @@ class MainActivity : AppCompatActivity(), ActivityViewModelHolder, U2fManager.De
         )
 
         U2fManager.setupActivity(this)
+        io.timelimit.android.child.UiChoice.redirectParent(this, savedInstanceState == null) // @tag:new-ui
 
         NotificationChannels.createNotificationChannels(getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager, this)
 

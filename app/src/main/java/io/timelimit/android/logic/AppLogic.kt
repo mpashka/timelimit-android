@@ -80,6 +80,10 @@ class AppLogic(
     val fullVersion = FullVersionLogic(this)
     val currentDeviceLogic = CurrentDeviceLogic(this)
     val appActivityReportLogic = AppActivityReportLogic(this) // @tag:app-usage
+
+    // comes with every sync outside of versions, so it is not stored (docs/specification/protocol-new-ui.md, section 6)
+    // @tag:device-state
+    val deviceStates = kotlinx.coroutines.flow.MutableStateFlow(emptyList<io.timelimit.android.data.model.DeviceState>())
     val backgroundTaskLogic = BackgroundTaskLogic(this)
     val appSetupLogic = AppSetupLogic(this)
     val syncNotificationLogic = SyncNotificationLogic(this)

@@ -49,7 +49,9 @@ data class ServerDataStatus(
         val u2f: ServerU2fData?,
         val fullVersionUntil: Long,
         val message: String?,
-        val apiLevel: Int
+        val apiLevel: Int,
+        // @tag:device-state
+        val deviceStates: List<DeviceState>? = null
 ) {
     companion object {
         private const val NEW_DEVICE_LIST = "devices"
@@ -90,6 +92,7 @@ data class ServerDataStatus(
             var fullVersionUntil: Long? = null
             var message: String? = null
             var apiLevel = 0
+            var deviceStates: List<DeviceState>? = null
 
             reader.beginObject()
             while (reader.hasNext()) {
@@ -112,6 +115,7 @@ data class ServerDataStatus(
                     FULL_VERSION_UNTIL -> fullVersionUntil = reader.nextLong()
                     MESSAGE -> message = reader.nextString()
                     API_LEVEL -> apiLevel = reader.nextInt()
+                    "deviceStates" -> deviceStates = ChildRequestJson.parseDeviceStates(reader)
                     else -> reader.skipValue()
                 }
             }
@@ -135,7 +139,8 @@ data class ServerDataStatus(
                 u2f = u2f,
                 fullVersionUntil = fullVersionUntil!!,
                 message = message,
-                apiLevel = apiLevel
+                apiLevel = apiLevel,
+                deviceStates = deviceStates
             )
         }
     }
@@ -224,7 +229,8 @@ data class ServerUserData(
         val urlFilter: UserUrlFilter?,
         val childRequests: List<ChildRequest>,
         val appAllowances: List<AppAllowance>,
-        val appRules: List<AppRule>
+        val appRules: List<AppRule>,
+        val newApps: List<NewApp>
 ) {
     companion object {
         private const val ID = "id"
@@ -264,6 +270,7 @@ data class ServerUserData(
             var childRequests = emptyList<ChildRequest>()
             var appAllowances = emptyList<AppAllowance>()
             var appRules = emptyList<AppRule>()
+            var newApps = emptyList<NewApp>()
 
             reader.beginObject()
             while (reader.hasNext()) {
@@ -287,6 +294,7 @@ data class ServerUserData(
                     "requests" -> childRequests = ChildRequestJson.parseRequests(reader) // @tag:child-request
                     "appAllowances" -> appAllowances = ChildRequestJson.parseAllowances(reader) // @tag:app-allowance
                     "appRules" -> appRules = ChildRequestJson.parseRules(reader) // @tag:app-rule
+                    "newApps" -> newApps = ChildRequestJson.parseNewApps(reader) // @tag:new-app
                     else -> reader.skipValue()
                 }
             }
@@ -311,7 +319,8 @@ data class ServerUserData(
                     urlFilter = urlFilter,
                     childRequests = childRequests,
                     appAllowances = appAllowances,
-                    appRules = appRules
+                    appRules = appRules,
+                    newApps = newApps
             )
         }
 

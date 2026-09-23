@@ -91,6 +91,10 @@ class DummyServerApi: ServerApi {
         throw IOException()
     }
 
+    override suspend fun getAppUsage(deviceAuthToken: String, parentUserId: String, parentPasswordSecondHash: String, userId: String, fromDay: Int, toDay: Int): List<AppUsageRow> {
+        throw IOException()
+    }
+
     override suspend fun removeDevice(deviceAuthToken: String, parentUserId: String, parentPasswordSecondHash: String, deviceId: String) {
         throw IOException()
     }

@@ -583,6 +583,55 @@ class HttpServerApi(private val endpointWithoutSlashAtEnd: String): ServerApi {
         }
     }
 
+    // @tag:app-usage
+    override suspend fun getAppUsage(deviceAuthToken: String, parentUserId: String, parentPasswordSecondHash: String, userId: String, fromDay: Int, toDay: Int): List<AppUsageRow> {
+        postJsonRequest("parent/get-app-usage") { writer ->
+            writer.beginObject()
+            writer.name(DEVICE_AUTH_TOKEN).value(deviceAuthToken)
+            writer.name(PARENT_USER_ID).value(parentUserId)
+            writer.name(PARENT_PASSWORD_SECOND_HASH).value(parentPasswordSecondHash)
+            writer.name("userId").value(userId)
+            writer.name("fromDay").value(fromDay)
+            writer.name("toDay").value(toDay)
+            writer.endObject()
+        }.use { response ->
+            response.assertSuccess()
+
+            return Threads.network.executeAndWait {
+                val reader = JsonReader(response.body!!.charStream())
+                val result = mutableListOf<AppUsageRow>()
+
+                reader.beginObject()
+                while (reader.hasNext()) {
+                    if (reader.nextName() != "items") { reader.skipValue(); continue }
+
+                    reader.beginArray()
+                    while (reader.hasNext()) {
+                        var deviceId = ""; var day = 0; var packageName = ""; var ms = 0L
+
+                        reader.beginObject()
+                        while (reader.hasNext()) {
+                            when (reader.nextName()) {
+                                "deviceId" -> deviceId = reader.nextString()
+                                "day" -> day = reader.nextInt()
+                                "packageName" -> packageName = reader.nextString()
+                                "ms" -> ms = reader.nextLong()
+                                else -> reader.skipValue()
+                            }
+                        }
+                        reader.endObject()
+
+                        result.add(AppUsageRow(deviceId, day, packageName, ms))
+                    }
+                    reader.endArray()
+                }
+                reader.endObject()
+
+                result
+            }
+        }
+    }
+
     override suspend fun isDeviceRemoved(deviceAuthToken: String): Boolean {
         postJsonRequest("sync/is-device-removed") { writer ->
             writer.beginObject()

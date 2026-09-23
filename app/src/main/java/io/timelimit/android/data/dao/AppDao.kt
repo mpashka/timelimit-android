@@ -44,6 +44,9 @@ interface AppDao {
     @Query("SELECT * FROM app WHERE device_id IN (:deviceIds)")
     fun getAppsByDeviceIds(deviceIds: List<String>): LiveData<List<App>>
 
+    @Query("SELECT * FROM app WHERE package_name = :packageName")
+    fun getAppsByPackageNameSync(packageName: String): List<App>
+
     @Query("SELECT * FROM app")
     fun getAllApps(): LiveData<List<App>>
 

@@ -2203,6 +2203,43 @@ data class UpdateUserFlagsAction(val userId: String, val modifiedBits: Long, val
     }
 }
 
+// @tag:child-request
+data class AnswerChildRequestAction(val requestId: String, val answer: String, val until: Long, val word: String): ParentAction() {
+    init {
+        IdGenerator.assertIdValid(requestId)
+        if (answer != ChildRequestAnswer.KIND_APP && answer != ChildRequestAnswer.KIND_CATEGORY && answer != ChildRequestAnswer.KIND_DENY) throw IllegalArgumentException()
+        if (word.length > CreateChildRequestAction.MAX_WORD_LENGTH) throw IllegalArgumentException()
+    }
+
+    override fun serialize(writer: JsonWriter) {
+        writer.beginObject()
+        writer.name(TYPE).value("ANSWER_CHILD_REQUEST")
+        writer.name("requestId").value(requestId)
+        writer.name("answer").value(answer)
+        writer.name("until").value(if (answer == ChildRequestAnswer.KIND_DENY) 0 else until)
+        writer.name("word").value(word)
+        writer.endObject()
+    }
+}
+
+// @tag:app-rule
+data class SetAppRuleAction(val userId: String, val packageName: String, val days: Int, val limitMinutes: Int): ParentAction() {
+    init {
+        IdGenerator.assertIdValid(userId)
+        if (days !in 0..127 || limitMinutes !in -1..1440) throw IllegalArgumentException()
+    }
+
+    override fun serialize(writer: JsonWriter) {
+        writer.beginObject()
+        writer.name(TYPE).value("SET_APP_RULE")
+        writer.name("userId").value(userId)
+        writer.name("packageName").value(packageName)
+        writer.name("days").value(days)
+        writer.name("limitMinutes").value(limitMinutes)
+        writer.endObject()
+    }
+}
+
 // @tag:url-filter
 data class UpdateUserUrlFilterAction(val userId: String, val filter: UserUrlFilter): ParentAction() {
     companion object {

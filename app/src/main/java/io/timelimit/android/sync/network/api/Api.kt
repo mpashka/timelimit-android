@@ -55,6 +55,8 @@ interface ServerApi {
     suspend fun reportDeviceRemoved(deviceAuthToken: String)
     suspend fun removeDevice(deviceAuthToken: String, parentUserId: String, parentPasswordSecondHash: String, deviceId: String)
     suspend fun isDeviceRemoved(deviceAuthToken: String): Boolean
+    // @tag:app-usage
+    suspend fun getAppUsage(deviceAuthToken: String, parentUserId: String, parentPasswordSecondHash: String, userId: String, fromDay: Int, toDay: Int): List<AppUsageRow>
     suspend fun createIdentityToken(deviceAuthToken: String, parentUserId: String, parentPasswordSecondHash: String): String
     suspend fun requestAccountDeletion(deviceAuthToken: String, mailAuthTokens: List<String>)
 }
@@ -63,3 +65,6 @@ class MailServerBlacklistedException: RuntimeException()
 class MailAddressNotWhitelistedException: RuntimeException()
 class MailLoginBlockedForIntegrityReasonsException: RuntimeException()
 class MailServerTemporarilyBlacklistedException: RuntimeException()
+
+// @tag:app-usage
+data class AppUsageRow(val deviceId: String, val day: Int, val packageName: String, val ms: Long)

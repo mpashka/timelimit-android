@@ -753,6 +753,50 @@ object LocalDatabaseParentActionDispatcher {
 
                     database.user().updateUserSync(updatedUser)
                 }
+                // @tag:child-request
+                is AnswerChildRequestAction -> {
+                    val user = database.user().getAllUsersSync().find { user -> user.childRequests.any { it.id == action.requestId } }
+                        ?: throw IllegalArgumentException("request not found")
+                    val request = user.childRequests.first { it.id == action.requestId }
+                    val now = System.currentTimeMillis()
+
+                    if (request.answer != null) throw IllegalStateException("already answered")
+
+                    database.user().updateUserSync(user.copy(
+                        childRequests = user.childRequests.map {
+                            if (it.id != request.id) it
+                            else it.copy(answer = ChildRequestAnswer(
+                                kind = action.answer, until = action.until, word = action.word, parentUserId = parentUserId ?: "",
+                                at = now, repeatAfter = if (action.answer == ChildRequestAnswer.KIND_DENY) now + ChildRequest.LIFETIME else 0
+                            ))
+                        },
+                        appAllowances = if (action.answer != ChildRequestAnswer.KIND_APP) user.appAllowances
+                        else user.appAllowances.filterNot { it.packageName == request.packageName } +
+                                AppAllowance(request.packageName, (user.appAllowances.filter { it.packageName == request.packageName }.maxOfOrNull { it.until } ?: 0).coerceAtLeast(action.until))
+                    ))
+
+                    if (action.answer == ChildRequestAnswer.KIND_CATEGORY) {
+                        val categoryId = request.categoryId.ifEmpty { user.categoryForNotAssignedApps }
+                        val category = database.category().getCategoryByIdSync(categoryId)
+
+                        if (category != null) database.category().updateCategorySync(
+                            category.copy(disableLimitsUntil = category.disableLimitsUntil.coerceAtLeast(action.until))
+                        )
+                    }
+
+                    Unit
+                }
+                // @tag:app-rule
+                is SetAppRuleAction -> {
+                    val user = database.user().getUserByIdSync(action.userId) ?: throw IllegalArgumentException("user not found")
+                    val old = user.appRules.find { it.packageName == action.packageName }
+                    val rest = user.appRules.filterNot { it.packageName == action.packageName }
+
+                    database.user().updateUserSync(user.copy(
+                        appRules = if (action.days == 127 && action.limitMinutes == -1) rest
+                        else rest + AppRule(action.packageName, action.days, action.limitMinutes, old?.usedDay ?: 0, old?.usedMs ?: 0)
+                    ))
+                }
                 is UpdateUserUrlFilterAction -> {
                     val user = database.user().getUserByIdSync(action.userId)
                         ?: throw IllegalArgumentException("user not found")

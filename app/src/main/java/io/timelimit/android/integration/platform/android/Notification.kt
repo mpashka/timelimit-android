@@ -36,6 +36,7 @@ object NotificationIds {
     const val NEW_DEVICE = 10
     const val EXTRA_TIME_STARTED = 11
     const val REQUEST_OUTCOME = 12
+    const val PARENT_REQUEST = 13
 }
 
 object NotificationChannels {
@@ -260,6 +261,8 @@ object PendingIntentIds {
     const val CHILD_WARNING_ASK = 11
     const val OPEN_WHAT_CAN = 12
     const val REQUEST_OUTCOME_PLAY = 13
+    const val OPEN_PARENT_REQUESTS = 14
+    const val PARENT_REQUEST_ANSWER = 20000
     val DYNAMIC_NOTIFICATION_RANGE = 100..10000
 
     val PENDING_INTENT_FLAGS = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
