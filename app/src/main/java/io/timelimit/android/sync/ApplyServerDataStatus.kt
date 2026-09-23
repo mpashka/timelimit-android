@@ -60,6 +60,7 @@ object ApplyServerDataStatus {
             status.dh?.also { database.config().setLastDhKeySync(it) }
 
             var didCreateNewActions = false
+            val answeredRequests = mutableListOf<AnsweredRequest>()
 
             run {
                 val newUserList = status.newUserList
@@ -91,6 +92,17 @@ object ApplyServerDataStatus {
                             )
 
                             val oldEntry = oldUserList.find { it.id == newData.id }
+
+                            // @tag:child-request
+                            val ownDeviceId = database.config().getOwnDeviceIdSync()
+                            newData.childRequests
+                                .filter { request -> request.deviceId == ownDeviceId && request.answer != null }
+                                .filter { request -> oldEntry?.childRequests?.find { it.id == request.id }?.answer == null }
+                                .forEach { request ->
+                                    answeredRequests.add(AnsweredRequest(
+                                        request, newUserList.data.find { it.id == request.answer!!.parentUserId }?.name ?: ""
+                                    ))
+                                }
 
                             if (oldEntry == null) {
                                 // create entry
@@ -641,7 +653,8 @@ object ApplyServerDataStatus {
 
             Result(
                 newDeviceTitles = newDeviceTitles,
-                didCreateNewActions = didCreateNewActions
+                didCreateNewActions = didCreateNewActions,
+                answeredRequests = answeredRequests
             )
         }
     }
@@ -656,6 +669,9 @@ object ApplyServerDataStatus {
 
     data class Result (
         val newDeviceTitles: List<String>,
-        val didCreateNewActions: Boolean
+        val didCreateNewActions: Boolean,
+        val answeredRequests: List<AnsweredRequest>
     )
+
+    data class AnsweredRequest(val request: ChildRequest, val parentName: String)
 }

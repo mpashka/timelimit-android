@@ -76,6 +76,12 @@
     <string name="child_grant_day_end">До конца дня</string>
     <string name="child_until">до %s</string>
 
+    <string name="child_parent">Родитель</string>
+    <string name="child_outcome_allowed">Разрешено: %1$s до %2$s</string>
+    <string name="child_outcome_allowed_by">Разрешил: %s</string>
+    <string name="child_outcome_refused">Отказано: %s</string>
+    <string name="child_outcome_ask_again">Попросить снова можно с %s</string>
+
     <string name="child_hours_minutes">%1$d ч %2$d мин</string>
     <string name="child_hours">%d ч</string>
     <string name="child_minutes">%d мин</string>
