@@ -46,6 +46,8 @@ import io.timelimit.android.logic.blockingreason.CategoryItselfHandling
 import io.timelimit.android.sync.actions.ForceSyncAction
 import io.timelimit.android.sync.actions.UpdateDeviceStatusAction
 import io.timelimit.android.sync.actions.apply.ApplyActionUtil
+import io.timelimit.android.child.ChildWarning
+import io.timelimit.android.child.UiChoice
 import io.timelimit.android.ui.lock.LockActivity
 import io.timelimit.android.util.AndroidVersion
 import io.timelimit.android.util.TimeTextUtil
@@ -458,6 +460,9 @@ class BackgroundTaskLogic(val appLogic: AppLogic) {
                         val commitedSessionDuration = handling.remainingSessionDuration
                         val oldSessionDuration = handling.remainingSessionDuration?.let { it - timeToSubtractForCategory }
 
+                        // @tag:new-ui
+                        val newUi = UiChoice.isNew(appLogic.context)
+
                         // trigger time warnings
                         fun handleTimeWarnings(
                             notificationTitleStringResource: Int,
@@ -471,11 +476,16 @@ class BackgroundTaskLogic(val appLogic: AppLogic) {
                                 roundedNewTimeInMilliseconds < Int.MAX_VALUE &&
                                 roundedNewTimeInMinutes >= 0 &&
                                 roundedNewTimeInMinutes < Int.MAX_VALUE &&
-                                handling.createdWithCategoryRelatedData.allTimeWarningMinutes.contains(
+                                (handling.createdWithCategoryRelatedData.allTimeWarningMinutes.contains(
                                     roundedNewTimeInMinutes.toInt()
-                                )
+                                ) || (newUi && roundedNewTimeInMinutes.toInt() == ChildWarning.DEFAULT_MINUTES))
                             ) {
-                                appLogic.platformIntegration.showTimeWarningNotification(
+                                if (newUi) ChildWarning.show(
+                                    appLogic.context, category.title, roundedNewTimeInMilliseconds,
+                                    foregroundAppWithBaseHandlings.firstOrNull { (_, base) ->
+                                        base.getCategories(AppBaseHandling.GetCategoriesPurpose.UsageCounting).contains(categoryId)
+                                    }?.first?.packageName
+                                ) else appLogic.platformIntegration.showTimeWarningNotification(
                                     title = appLogic.context.getString(
                                         notificationTitleStringResource,
                                         category.title

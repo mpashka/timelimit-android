@@ -159,6 +159,8 @@
 
         <!-- system integration -->
 
+        <receiver android:name=".child.ChildWarning$AskReceiver" android:exported="false" />
+
         <receiver android:name=".integration.platform.android.receiver.BootReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />

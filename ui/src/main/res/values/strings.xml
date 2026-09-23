@@ -61,6 +61,9 @@
     <string name="child_waiting_request">%1$s — просьба ждёт ответа с %2$s</string>
     <string name="child_no_categories">Родитель ещё ничего не настроил</string>
 
+    <string name="child_warning_title">%1$s: осталось %2$s</string>
+    <string name="child_warning_text">%1$s закроется в %2$s — успей сохраниться</string>
+
     <string name="child_hours_minutes">%1$d ч %2$d мин</string>
     <string name="child_hours">%d ч</string>
     <string name="child_minutes">%d мин</string>
