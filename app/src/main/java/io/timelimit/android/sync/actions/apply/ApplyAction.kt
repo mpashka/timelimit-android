@@ -186,7 +186,8 @@ object ApplyActionUtil {
 
                     val sequenceNumber = addAppLogicActionToDatabaseSync(action, database)
 
-                    if (action is AddUsedTimeActionVersion2) {
+                    // @tag:app-usage @tag:device-state
+                    if (action is AddUsedTimeActionVersion2 || action is SetAppUsageAction || action is SetForegroundAppAction) {
                         syncUtil.requestVeryUnimportantSync()
                     } else {
                         if (BuildConfig.DEBUG) {

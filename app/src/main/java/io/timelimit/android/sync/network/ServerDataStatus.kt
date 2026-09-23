@@ -223,7 +223,8 @@ data class ServerUserData(
         val preBlockDuration: Long,
         val urlFilter: UserUrlFilter?,
         val childRequests: List<ChildRequest>,
-        val appAllowances: List<AppAllowance>
+        val appAllowances: List<AppAllowance>,
+        val appRules: List<AppRule>
 ) {
     companion object {
         private const val ID = "id"
@@ -262,6 +263,7 @@ data class ServerUserData(
             var urlFilter: UserUrlFilter? = null
             var childRequests = emptyList<ChildRequest>()
             var appAllowances = emptyList<AppAllowance>()
+            var appRules = emptyList<AppRule>()
 
             reader.beginObject()
             while (reader.hasNext()) {
@@ -284,6 +286,7 @@ data class ServerUserData(
                     URL_FILTER -> urlFilter = UserUrlFilterJson.parseNullable(reader) // @tag:url-filter
                     "requests" -> childRequests = ChildRequestJson.parseRequests(reader) // @tag:child-request
                     "appAllowances" -> appAllowances = ChildRequestJson.parseAllowances(reader) // @tag:app-allowance
+                    "appRules" -> appRules = ChildRequestJson.parseRules(reader) // @tag:app-rule
                     else -> reader.skipValue()
                 }
             }
@@ -307,7 +310,8 @@ data class ServerUserData(
                     preBlockDuration = preBlockDuration,
                     urlFilter = urlFilter,
                     childRequests = childRequests,
-                    appAllowances = appAllowances
+                    appAllowances = appAllowances,
+                    appRules = appRules
             )
         }
 

@@ -52,7 +52,14 @@ data class AppAllowance(val packageName: String, val until: Long) {
     }
 }
 
-// @tag:child-request @tag:app-allowance
+/**
+ * `users.data[].appRules` of docs/specification/protocol-new-ui.md, section 3: [days] bit 0 is Monday,
+ * [limitMinutes] -1 means no own limit; [usedMs] is the time of all tablets on [usedDay].
+ */
+// @tag:app-rule
+data class AppRule(val packageName: String, val days: Int, val limitMinutes: Int, val usedDay: Int, val usedMs: Long)
+
+// @tag:child-request @tag:app-allowance @tag:app-rule
 object ChildRequestJson {
     private fun nextStringOrEmpty(reader: JsonReader): String =
         if (reader.peek() == JsonToken.NULL) { reader.nextNull(); "" } else reader.nextString()
@@ -135,6 +142,43 @@ object ChildRequestJson {
         return result
     }
 
+    fun parseRules(reader: JsonReader): List<AppRule> {
+        val result = mutableListOf<AppRule>()
+
+        reader.beginArray()
+        while (reader.hasNext()) {
+            var packageName = ""; var days = 127; var limitMinutes = -1; var usedDay = 0; var usedMs = 0L
+
+            reader.beginObject()
+            while (reader.hasNext()) {
+                when (reader.nextName()) {
+                    "packageName" -> packageName = reader.nextString()
+                    "days" -> days = reader.nextInt()
+                    "limitMinutes" -> limitMinutes = reader.nextInt()
+                    "usedDay" -> usedDay = reader.nextInt()
+                    "usedMs" -> usedMs = reader.nextLong()
+                    else -> reader.skipValue()
+                }
+            }
+            reader.endObject()
+
+            result.add(AppRule(packageName, days, limitMinutes, usedDay, usedMs))
+        }
+        reader.endArray()
+
+        return result
+    }
+
+    fun serializeRules(rules: List<AppRule>, writer: JsonWriter) {
+        writer.beginArray()
+        rules.forEach {
+            writer.beginObject().name("packageName").value(it.packageName).name("days").value(it.days)
+                .name("limitMinutes").value(it.limitMinutes).name("usedDay").value(it.usedDay).name("usedMs").value(it.usedMs)
+                .endObject()
+        }
+        writer.endArray()
+    }
+
     fun serializeRequests(requests: List<ChildRequest>, writer: JsonWriter) {
         writer.beginArray()
         requests.forEach { request ->
@@ -186,4 +230,12 @@ class AppAllowanceListConverter {
 
     @TypeConverter
     fun toString(value: List<AppAllowance>): String = ChildRequestJson.write { ChildRequestJson.serializeAllowances(value, it) }
+}
+
+class AppRuleListConverter {
+    @TypeConverter
+    fun fromString(value: String): List<AppRule> = ChildRequestJson.parseRules(JsonReader(StringReader(value)))
+
+    @TypeConverter
+    fun toString(value: List<AppRule>): String = ChildRequestJson.write { ChildRequestJson.serializeRules(value, it) }
 }

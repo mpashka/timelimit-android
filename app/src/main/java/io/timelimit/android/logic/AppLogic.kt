@@ -79,6 +79,7 @@ class AppLogic(
     val realTimeLogic = RealTimeLogic(this)
     val fullVersion = FullVersionLogic(this)
     val currentDeviceLogic = CurrentDeviceLogic(this)
+    val appActivityReportLogic = AppActivityReportLogic(this) // @tag:app-usage
     val backgroundTaskLogic = BackgroundTaskLogic(this)
     val appSetupLogic = AppSetupLogic(this)
     val syncNotificationLogic = SyncNotificationLogic(this)

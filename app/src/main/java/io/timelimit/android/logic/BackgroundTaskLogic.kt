@@ -47,6 +47,7 @@ import io.timelimit.android.logic.blockingreason.CategoryItselfHandling
 import io.timelimit.android.sync.actions.ForceSyncAction
 import io.timelimit.android.sync.actions.UpdateDeviceStatusAction
 import io.timelimit.android.sync.actions.apply.ApplyActionUtil
+import io.timelimit.android.child.ChildLockActivity
 import io.timelimit.android.child.ChildWarning
 import io.timelimit.android.child.UiChoice
 import io.timelimit.android.ui.lock.LockActivity
@@ -140,7 +141,7 @@ class BackgroundTaskLogic(val appLogic: AppLogic) {
 
     private val isChromeOs = appLogic.context.packageManager.hasSystemFeature(PackageManager.FEATURE_PC)
 
-    private suspend fun openLockscreen(blockedAppPackageName: String, blockedAppActivityName: String?, enableSoftBlocking: Boolean) {
+    private suspend fun openLockscreen(blockedAppPackageName: String, blockedAppActivityName: String?, onlyNewLockScreen: Boolean, enableSoftBlocking: Boolean) {
         if (enableSoftBlocking) {
             appLogic.platformIntegration.setShowBlockingOverlay(false)
         } else {
@@ -165,7 +166,10 @@ class BackgroundTaskLogic(val appLogic: AppLogic) {
             }
         }
 
-        appLogic.platformIntegration.showAppLockScreen(blockedAppPackageName, blockedAppActivityName)
+        // the upstream lock screen knows no app rules and would close itself at once
+        // @tag:app-rule
+        if (onlyNewLockScreen) ChildLockActivity.start(appLogic.context, blockedAppPackageName)
+        else appLogic.platformIntegration.showAppLockScreen(blockedAppPackageName, blockedAppActivityName)
     }
 
     private var showNotificationToRevokeTemporarilyAllowedApps: Boolean? = null
@@ -397,7 +401,13 @@ class BackgroundTaskLogic(val appLogic: AppLogic) {
                     }
                 }
 
+                // @tag:device-state
+                appLogic.appActivityReportLogic.reportForeground(
+                    if (isScreenOn) foregroundAppsOrNullOnMissingPermission?.firstOrNull()?.packageName ?: "" else ""
+                )
+
                 // check if should be blocked
+                var blockedOnlyByAppRule = false
                 val blockedForegroundApp = foregroundAppWithBaseHandlings.find { (foregroundApp, foregroundAppBaseHandling) ->
                     // @tag:app-allowance
                     val appAllowed = AppAllowance.activeUntil(
@@ -412,7 +422,18 @@ class BackgroundTaskLogic(val appLogic: AppLogic) {
                             categoryHandlingCache.get(it).shouldBlockActivities(appAllowed)
                         } != null
 
-                    noCategoryBlocking || byCategoryBlocking
+                    // @tag:app-rule
+                    val categoryLimitsDisabled = foregroundAppBaseHandling
+                        .getCategories(AppBaseHandling.GetCategoriesPurpose.Blocking)
+                        .any { categoryHandlingCache.get(it).areLimitsTemporarilyDisabled }
+                    val byAppRule = !appAllowed && !categoryLimitsDisabled && realTime.shouldTrustTimeTemporarily &&
+                            AppRuleCheck.check(
+                                userRelatedData.user.appRules, foregroundApp.packageName, realTime.timeInMillis, userRelatedData.timeZone,
+                                appLogic.appActivityReportLogic.unsentToday(foregroundApp.packageName)
+                            ) != AppRuleCheck.Verdict.Open
+
+                    blockedOnlyByAppRule = byAppRule && !noCategoryBlocking && !byCategoryBlocking
+                    noCategoryBlocking || byCategoryBlocking || byAppRule
                 }?.first
 
                 val blockAudioPlayback = kotlin.run {
@@ -878,6 +899,7 @@ class BackgroundTaskLogic(val appLogic: AppLogic) {
                     openLockscreen(
                             blockedAppPackageName = blockedForegroundApp.packageName,
                             blockedAppActivityName = blockedForegroundApp.activityName,
+                            onlyNewLockScreen = blockedOnlyByAppRule,
                             enableSoftBlocking = deviceRelatedData.experimentalFlags and ExperimentalFlags.ENABLE_SOFT_BLOCKING == ExperimentalFlags.ENABLE_SOFT_BLOCKING
                     )
                 } else {

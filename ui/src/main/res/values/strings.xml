@@ -19,6 +19,13 @@
     <string name="child_reason_no_network_permission">Планшету нужно разрешение — поэтому закрыто</string>
     <string name="child_reason_other_device">%s: сейчас идут на другом планшете</string>
 
+    <string name="child_reason_app_only_on_days">Родитель открыл %1$s только в %2$s</string>
+    <string name="child_reason_app_closed">Родитель закрыл %s</string>
+    <string name="child_reason_app_limit_over">Лимит %s на сегодня кончился</string>
+    <string-array name="child_days_short">
+        <item>пн</item><item>вт</item><item>ср</item><item>чт</item><item>пт</item><item>сб</item><item>вс</item>
+    </string-array>
+
     <string name="child_opens_at">откроется %s в</string>
     <string name="child_opens_unknown_parent">пока родитель не откроет</string>
     <string name="child_day_today">сегодня</string>

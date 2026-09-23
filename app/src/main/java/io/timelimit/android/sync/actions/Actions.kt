@@ -735,6 +735,60 @@ data class GrantByParentCodeAction(
     }
 }
 
+// @tag:app-usage
+data class SetAppUsageAction(val day: Int, val items: Map<String, Long>): AppLogicAction() {
+    companion object {
+        const val TYPE_VALUE = "SET_APP_USAGE"
+        const val MAX_ITEMS = 100
+    }
+
+    init {
+        if (day < 0 || items.isEmpty() || items.size > MAX_ITEMS) throw IllegalArgumentException()
+        if (items.values.any { it < 0 || it > 24 * 60 * 60 * 1000L }) throw IllegalArgumentException()
+    }
+
+    override fun serialize(writer: JsonWriter) {
+        writer.beginObject()
+        writer.name(TYPE).value(TYPE_VALUE)
+        writer.name("day").value(day)
+        writer.name("items").beginArray()
+        items.forEach { (packageName, ms) -> writer.beginObject().name("packageName").value(packageName).name("ms").value(ms).endObject() }
+        writer.endArray()
+        writer.endObject()
+    }
+}
+
+// @tag:new-app
+data class ReportNewAppAction(val packageName: String, val title: String, val section: String, val installedAt: Long): AppLogicAction() {
+    companion object {
+        const val TYPE_VALUE = "REPORT_NEW_APP"
+    }
+
+    override fun serialize(writer: JsonWriter) {
+        writer.beginObject()
+        writer.name(TYPE).value(TYPE_VALUE)
+        writer.name("packageName").value(packageName)
+        writer.name("title").value(title.take(100))
+        writer.name("section").value(section)
+        writer.name("installedAt").value(installedAt)
+        writer.endObject()
+    }
+}
+
+// @tag:new-app
+data class ForgetNewAppAction(val packageName: String): AppLogicAction() {
+    override fun serialize(writer: JsonWriter) {
+        writer.beginObject().name(TYPE).value("FORGET_NEW_APP").name("packageName").value(packageName).endObject()
+    }
+}
+
+// @tag:device-state
+data class SetForegroundAppAction(val packageName: String): AppLogicAction() {
+    override fun serialize(writer: JsonWriter) {
+        writer.beginObject().name(TYPE).value("SET_FOREGROUND_APP").name("packageName").value(packageName).endObject()
+    }
+}
+
 data class AddCategoryAppsAction(val categoryId: String, val packageNames: List<String>): ParentAction() {
     companion object {
         const val TYPE_VALUE = "ADD_CATEGORY_APPS"

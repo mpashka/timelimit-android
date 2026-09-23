@@ -88,7 +88,8 @@ object ApplyServerDataStatus {
                                     flags = newEntry.flags,
                                     urlFilter = newEntry.urlFilter,
                                     childRequests = newEntry.childRequests,
-                                    appAllowances = newEntry.appAllowances
+                                    appAllowances = newEntry.appAllowances,
+                                    appRules = newEntry.appRules
                             )
 
                             val oldEntry = oldUserList.find { it.id == newData.id }

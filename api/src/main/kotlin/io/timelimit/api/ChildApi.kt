@@ -69,6 +69,12 @@ sealed interface CloseReason {
     data object NoExactTime : CloseReason
     data object NoNetworkPermission : CloseReason
     data object OtherDevice : CloseReason
+
+    /** The app's own rule: only on [days] (bit 0 — Monday). */
+    // @tag:app-rule
+    data class AppOnlyOnDays(val days: Int) : CloseReason
+    data object AppClosedByParent : CloseReason
+    data object AppLimitOver : CloseReason
 }
 
 /** The request states of docs/specification/protocol-new-ui.md, section 1, as the child sees them. */

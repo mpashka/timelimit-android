@@ -34,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -152,7 +153,7 @@ private fun BigTime(label: String, time: String, color: Color) {
 }
 
 @Composable
-private fun reasonText(reason: CloseReason, category: String): String = when (reason) {
+private fun reasonText(reason: CloseReason, category: String, app: String): String = when (reason) {
     CloseReason.LimitOver -> stringResource(R.string.child_reason_limit_over, category)
     is CloseReason.ExtraTimeLater -> stringResource(R.string.child_reason_extra_time_later, formatDuration(reason.extraTime))
     is CloseReason.Mode -> reason.name?.let { stringResource(R.string.child_reason_mode_named, it) }
@@ -168,12 +169,24 @@ private fun reasonText(reason: CloseReason, category: String): String = when (re
     CloseReason.NoExactTime -> stringResource(R.string.child_reason_no_exact_time)
     CloseReason.NoNetworkPermission -> stringResource(R.string.child_reason_no_network_permission)
     CloseReason.OtherDevice -> stringResource(R.string.child_reason_other_device, category)
+    is CloseReason.AppOnlyOnDays -> stringResource(R.string.child_reason_app_only_on_days, app, daysText(reason.days))
+    CloseReason.AppClosedByParent -> stringResource(R.string.child_reason_app_closed, app)
+    CloseReason.AppLimitOver -> stringResource(R.string.child_reason_app_limit_over, app)
+}
+
+@Composable
+private fun daysText(days: Int): String {
+    val names = stringArrayResource(R.array.child_days_short)
+    val chosen = (0 until 7).filter { days and (1 shl it) != 0 }.map { names[it] }
+
+    return if (chosen.size <= 1) chosen.joinToString() else chosen.dropLast(1).joinToString(", ") + " и " + chosen.last()
 }
 
 private val CloseReason.canAsk
     get() = when (this) {
         CloseReason.LimitOver, is CloseReason.ExtraTimeLater, is CloseReason.Mode,
-        CloseReason.ClosedByParent, CloseReason.NewApp -> true
+        CloseReason.ClosedByParent, CloseReason.NewApp,
+        is CloseReason.AppOnlyOnDays, CloseReason.AppClosedByParent, CloseReason.AppLimitOver -> true
         else -> false
     }
 
@@ -201,7 +214,7 @@ fun ClosedApp(
                 access.categoryTitle?.let { stringResource(R.string.child_category_line, it) }
             )
             Spacer(Modifier.height(24.dp))
-            Text(reasonText(reason, category), color = colors.text, fontSize = 26.sp, fontWeight = FontWeight.SemiBold)
+            Text(reasonText(reason, category, access.app.title), color = colors.text, fontSize = 26.sp, fontWeight = FontWeight.SemiBold)
 
             when {
                 reason == CloseReason.NoExactTime || reason == CloseReason.NoNetworkPermission -> {

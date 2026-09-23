@@ -454,6 +454,7 @@ object LocalDatabaseAppLogicActionDispatcher {
                         )
                     }
                 }
+                is SetAppUsageAction, is ReportNewAppAction, is ForgetNewAppAction, is SetForegroundAppAction -> {/* only for the server */}
                 is UpdateInstalledAppsAction -> {/* nothing to do, this is only for the server */}
                 is UploadDevicePublicKeyAction -> {/* nothing to do, this is only for the server */}
                 is SendKeyRequestAction -> {/* nothing to do, this is only for the server */}

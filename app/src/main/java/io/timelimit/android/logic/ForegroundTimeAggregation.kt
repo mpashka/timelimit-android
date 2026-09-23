@@ -15,6 +15,11 @@
  */
 package io.timelimit.android.logic
 
+import android.app.usage.UsageEvents
+import android.app.usage.UsageStatsManager
+import android.content.Context
+import io.timelimit.android.integration.platform.android.foregroundapp.usagestats.UsageStatsConstants
+
 // @tag:category-limits
 object ForegroundTimeAggregation {
     sealed class Event {
@@ -86,4 +91,27 @@ object ForegroundTimeAggregation {
 
         return result
     }
+
+    /** Foreground time per package within [start, end) from the usage events of this device. */
+    fun foregroundTime(context: Context, start: Long, end: Long): Map<String, Long> =
+        aggregate(readEvents(context, start, end), start, end)
+
+    private fun readEvents(context: Context, start: Long, end: Long): List<Event> {
+        val manager = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+        val nativeEvents = manager.queryEvents(start, end) ?: return emptyList()
+        val event = UsageEvents.Event()
+        val result = mutableListOf<Event>()
+
+        while (nativeEvents.getNextEvent(event)) {
+            when (event.eventType) {
+                UsageStatsConstants.MOVE_TO_FOREGROUND -> result.add(Event.Resumed(event.timeStamp, event.packageName, event.className ?: ""))
+                UsageStatsConstants.MOVE_TO_BACKGROUND -> result.add(Event.Paused(event.timeStamp, event.packageName, event.className ?: ""))
+                UsageStatsConstants.DEVICE_STARTUP, DEVICE_SHUTDOWN -> result.add(Event.EndAll(event.timeStamp))
+            }
+        }
+
+        return result
+    }
+
+    private const val DEVICE_SHUTDOWN = 26
 }

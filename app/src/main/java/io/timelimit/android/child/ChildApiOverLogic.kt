@@ -13,6 +13,7 @@ import io.timelimit.android.data.model.derived.DeviceAndUserRelatedData
 import io.timelimit.android.data.model.derived.UserRelatedData
 import io.timelimit.android.date.getMinuteOfWeek
 import io.timelimit.android.logic.AppLogic
+import io.timelimit.android.logic.AppRuleCheck
 import io.timelimit.android.logic.BlockingReason
 import io.timelimit.android.logic.CurrentDeviceLogic
 import io.timelimit.android.logic.DefaultAppLogic
@@ -183,6 +184,30 @@ class ChildApiOverLogic(private val logic: AppLogic) : ChildApi {
             base is AppBaseHandling.BlockDueToNoCategory && allowedUntil == null -> AppAccess.Closed(
                 app, null, CloseReason.NewApp, null, null, request, grant
             )
+            // @tag:app-rule
+            allowedUntil == null && categories.none { it.areLimitsTemporarilyDisabled } && time.shouldTrustTimeTemporarily &&
+                    ruleVerdict(user, packageName, time.timeInMillis) != AppRuleCheck.Verdict.Open -> {
+                val verdict = ruleVerdict(user, packageName, time.timeInMillis)
+                val category = categories.firstOrNull()
+
+                AppAccess.Closed(
+                    app = app,
+                    categoryTitle = category?.createdWithCategoryRelatedData?.category?.title,
+                    reason = when (verdict) {
+                        is AppRuleCheck.Verdict.NotToday -> CloseReason.AppOnlyOnDays(verdict.days)
+                        AppRuleCheck.Verdict.LimitOver -> CloseReason.AppLimitOver
+                        else -> CloseReason.AppClosedByParent
+                    },
+                    opensAt = when (verdict) {
+                        is AppRuleCheck.Verdict.NotToday -> dayStartAfterModes(category, time.timeInMillis, user.timeZone, verdict.daysUntilAllowed)
+                        AppRuleCheck.Verdict.LimitOver -> dayStartAfterModes(category, time.timeInMillis, user.timeZone, 1)
+                        else -> null
+                    },
+                    remainingToday = null,
+                    request = request,
+                    grant = grant,
+                )
+            }
             else -> {
                 val categoryUntil = categories.filter { it.areLimitsTemporarilyDisabled }
                     .maxOfOrNull { it.createdWithCategoryRelatedData.category.disableLimitsUntil.coerceAtLeast(user.user.disableLimitsUntil) }
@@ -191,6 +216,20 @@ class ChildApiOverLogic(private val logic: AppLogic) : ChildApi {
                 AppAccess.Open(app, until, until?.let { ChildRequestStates.answeredBy(user.user.childRequests, packageName, parentName) })
             }
         }
+    }
+
+    private fun ruleVerdict(user: UserRelatedData, packageName: String, now: Long) = AppRuleCheck.check(
+        user.user.appRules, packageName, now, user.timeZone, logic.appActivityReportLogic.unsentToday(packageName)
+    )
+
+    /** The first minute of the day [days] ahead that the category's modes leave open ("завтра после сна"). */
+    private fun dayStartAfterModes(category: CategoryItselfHandling?, now: Long, timeZone: TimeZone, days: Int): Long {
+        val nowMinute = getMinuteOfWeek(now, timeZone)
+        val dayStart = ModeClock.nextDayStart(nowMinute) + (days - 1) * ModeClock.DAY
+        val blocked = category?.createdWithCategoryRelatedData?.category?.blockedMinutesInWeek?.dataNotToModify
+        val afterModes = blocked?.let { ModeClock.minutesUntilOpen(it, dayStart % ModeClock.WEEK) } ?: 0
+
+        return now - now % MINUTE + (dayStart - nowMinute + afterModes) * MINUTE
     }
 
     private fun dayEnd(user: UserRelatedData, now: Long): Long {

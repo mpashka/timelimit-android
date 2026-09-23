@@ -15,13 +15,9 @@
  */
 package io.timelimit.android.ui.model.managechild
 
-import android.app.usage.UsageEvents
-import android.app.usage.UsageStatsManager
-import android.content.Context
 import io.timelimit.android.async.Threads
 import io.timelimit.android.coroutines.executeAndWait
 import io.timelimit.android.data.extensions.getTimezone
-import io.timelimit.android.integration.platform.android.foregroundapp.usagestats.UsageStatsConstants
 import io.timelimit.android.logic.AppLogic
 import io.timelimit.android.logic.ForegroundTimeAggregation
 import io.timelimit.android.logic.RealTime
@@ -104,7 +100,7 @@ object ManageChildAppUsage {
         val deviceRelatedData = deviceAndUserRelatedData?.deviceRelatedData
 
         val items = Threads.backgroundOSInteraction.executeAndWait {
-            val durations = ForegroundTimeAggregation.aggregate(readEvents(logic.context, start, end), start, end)
+            val durations = ForegroundTimeAggregation.foregroundTime(logic.context, start, end)
             val battery = logic.platformIntegration.getBatteryStatus()
 
             durations.map { (packageName, duration) ->
@@ -159,23 +155,4 @@ object ManageChildAppUsage {
             selectDaysAgo = selectDaysAgo
         )
     }
-
-    private fun readEvents(context: Context, start: Long, end: Long): List<ForegroundTimeAggregation.Event> {
-        val manager = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
-        val nativeEvents = manager.queryEvents(start, end) ?: return emptyList()
-        val event = UsageEvents.Event()
-        val result = mutableListOf<ForegroundTimeAggregation.Event>()
-
-        while (nativeEvents.getNextEvent(event)) {
-            when (event.eventType) {
-                UsageStatsConstants.MOVE_TO_FOREGROUND -> result.add(ForegroundTimeAggregation.Event.Resumed(event.timeStamp, event.packageName, event.className ?: ""))
-                UsageStatsConstants.MOVE_TO_BACKGROUND -> result.add(ForegroundTimeAggregation.Event.Paused(event.timeStamp, event.packageName, event.className ?: ""))
-                UsageStatsConstants.DEVICE_STARTUP, DEVICE_SHUTDOWN -> result.add(ForegroundTimeAggregation.Event.EndAll(event.timeStamp))
-            }
-        }
-
-        return result
-    }
-
-    private const val DEVICE_SHUTDOWN = 26
 }
