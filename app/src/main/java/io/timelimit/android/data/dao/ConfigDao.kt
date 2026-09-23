@@ -426,4 +426,9 @@ abstract class ConfigDao {
             value?.let { ManageChildCurrentDevice.encodeRememberedChoice((it)) }
         )
     }
+
+    // @tag:parent-code
+    fun getParentCodeSecretSync(): String? = getValueOfKeySync(ConfigurationItemType.ParentCodeSecret)
+
+    fun setParentCodeSecretSync(value: String?) = updateValueSync(ConfigurationItemType.ParentCodeSecret, value)
 }

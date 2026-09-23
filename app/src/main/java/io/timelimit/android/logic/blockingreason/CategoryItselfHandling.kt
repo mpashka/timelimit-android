@@ -301,6 +301,13 @@ data class CategoryItselfHandling (
     val okBasic = okByBattery && okByTempBlocking && okByBlockedTimeAreas && okByTimeLimitRules && okBySessionDurationLimits && !missingNetworkTime
     val okAll = okBasic && okByCurrentDevice && okByNetworkId
     val shouldBlockActivities = !okAll
+
+    // An app allowance lifts limits, modes and breaks, but not the parent's own closing or dead ends
+    // (docs/specification/protocol-new-ui.md, section 2).
+    // @tag:app-allowance
+    fun shouldBlockActivities(appAllowed: Boolean): Boolean =
+        if (appAllowed) !(okByBattery && okByTempBlocking && okByNetworkId && okByCurrentDevice && !missingNetworkTime)
+        else shouldBlockActivities
     val activityBlockingReason: BlockingReason = if (!okByBattery)
         BlockingReason.BatteryLimit
     else if (!okByTempBlocking)

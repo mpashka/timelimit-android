@@ -419,6 +419,41 @@ object LocalDatabaseAppLogicActionDispatcher {
 
                     database.childTasks().updateItemSync(task.copy(pendingRequest = true))
                 }
+                // @tag:child-request
+                is CreateChildRequestAction -> {
+                    val device = database.device().getDeviceByIdSync(deviceId)!!
+                    val user = database.user().getUserByIdSync(device.currentUserId) ?: throw IllegalStateException()
+                    val now = System.currentTimeMillis()
+
+                    database.user().updateUserSync(user.copy(childRequests = listOf(ChildRequest(
+                        id = action.requestId, packageName = action.packageName, categoryId = action.categoryId,
+                        deviceId = deviceId, word = action.word, createdAt = now, expiresAt = now + ChildRequest.LIFETIME,
+                        answer = null, pending = true
+                    )) + user.childRequests))
+                }
+                // @tag:parent-code @tag:app-allowance
+                is GrantByParentCodeAction -> {
+                    val device = database.device().getDeviceByIdSync(deviceId)!!
+                    val user = database.user().getUserByIdSync(device.currentUserId) ?: throw IllegalStateException()
+
+                    if (action.answer == ChildRequestAnswer.KIND_APP) {
+                        val until = user.appAllowances.filter { it.packageName == action.packageName }
+                            .maxOfOrNull { it.until }?.coerceAtLeast(action.until) ?: action.until
+
+                        database.user().updateUserSync(user.copy(
+                            appAllowances = user.appAllowances.filterNot { it.packageName == action.packageName } +
+                                    AppAllowance(action.packageName, until)
+                        ))
+                    } else {
+                        val category = database.category().getCategoryByIdSync(action.categoryId) ?: throw CategoryNotFoundException()
+
+                        if (category.childId != user.id) throw IllegalStateException()
+
+                        database.category().updateCategorySync(
+                            category.copy(disableLimitsUntil = category.disableLimitsUntil.coerceAtLeast(action.until))
+                        )
+                    }
+                }
                 is UpdateInstalledAppsAction -> {/* nothing to do, this is only for the server */}
                 is UploadDevicePublicKeyAction -> {/* nothing to do, this is only for the server */}
                 is SendKeyRequestAction -> {/* nothing to do, this is only for the server */}

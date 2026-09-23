@@ -27,7 +27,9 @@ import io.timelimit.android.util.parseJsonArray
 @TypeConverters(
         UserTypeConverter::class,
         ImmutableBitmaskAdapter::class,
-        UserUrlFilterConverter::class
+        UserUrlFilterConverter::class,
+        ChildRequestListConverter::class,
+        AppAllowanceListConverter::class
 )
 data class User(
         @PrimaryKey
@@ -66,7 +68,13 @@ data class User(
         val flags: Long,
         // @tag:url-filter
         @ColumnInfo(name = "url_filter")
-        val urlFilter: UserUrlFilter? = null
+        val urlFilter: UserUrlFilter? = null,
+        // @tag:child-request
+        @ColumnInfo(name = "child_requests", defaultValue = "[]")
+        val childRequests: List<ChildRequest> = emptyList(),
+        // @tag:app-allowance
+        @ColumnInfo(name = "app_allowances", defaultValue = "[]")
+        val appAllowances: List<AppAllowance> = emptyList()
 ): JsonSerializable {
     companion object {
         private const val ID = "id"

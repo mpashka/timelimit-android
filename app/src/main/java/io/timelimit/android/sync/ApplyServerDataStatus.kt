@@ -85,7 +85,9 @@ object ApplyServerDataStatus {
                                     relaxPrimaryDevice = newEntry.relaxPrimaryDevice,
                                     mailNotificationFlags = newEntry.mailNotificationFlags,
                                     flags = newEntry.flags,
-                                    urlFilter = newEntry.urlFilter
+                                    urlFilter = newEntry.urlFilter,
+                                    childRequests = newEntry.childRequests,
+                                    appAllowances = newEntry.appAllowances
                             )
 
                             val oldEntry = oldUserList.find { it.id == newData.id }
@@ -128,6 +130,7 @@ object ApplyServerDataStatus {
                         // update version
 
                         database.config().setUserListVersionSync(newUserList.version)
+                        database.config().setParentCodeSecretSync(newUserList.parentCodeSecret) // @tag:parent-code
                     }
                 }
             }

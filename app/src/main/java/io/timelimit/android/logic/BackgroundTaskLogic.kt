@@ -26,6 +26,7 @@ import io.timelimit.android.coroutines.executeAndWait
 import io.timelimit.android.coroutines.runAsync
 import io.timelimit.android.coroutines.runAsyncExpectForever
 import io.timelimit.android.data.backup.DatabaseBackup
+import io.timelimit.android.data.model.AppAllowance
 import io.timelimit.android.data.model.DevicePlatform
 import io.timelimit.android.data.model.ExperimentalFlags
 import io.timelimit.android.data.model.ManipulationFlag
@@ -397,13 +398,18 @@ class BackgroundTaskLogic(val appLogic: AppLogic) {
                 }
 
                 // check if should be blocked
-                val blockedForegroundApp = foregroundAppWithBaseHandlings.find { (_, foregroundAppBaseHandling) ->
-                    val noCategoryBlocking = foregroundAppBaseHandling is AppBaseHandling.BlockDueToNoCategory
+                val blockedForegroundApp = foregroundAppWithBaseHandlings.find { (foregroundApp, foregroundAppBaseHandling) ->
+                    // @tag:app-allowance
+                    val appAllowed = AppAllowance.activeUntil(
+                        userRelatedData.user.appAllowances, foregroundApp.packageName,
+                        realTime.timeInMillis, realTime.shouldTrustTimeTemporarily
+                    ) != null
+                    val noCategoryBlocking = foregroundAppBaseHandling is AppBaseHandling.BlockDueToNoCategory && !appAllowed
 
                     val byCategoryBlocking = foregroundAppBaseHandling
                         .getCategories(AppBaseHandling.GetCategoriesPurpose.Blocking)
                         .find {
-                            categoryHandlingCache.get(it).shouldBlockActivities
+                            categoryHandlingCache.get(it).shouldBlockActivities(appAllowed)
                         } != null
 
                     noCategoryBlocking || byCategoryBlocking

@@ -35,6 +35,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 class SuspendAppsLogic(private val appLogic: AppLogic): Observer {
     private var lastDefaultCategory: String? = null
+    private var lastAllowedPackages: Set<String>? = null
     private var lastAllowedCategoryList = emptySet<String>()
     private var lastCategoryApps = emptyList<CategoryApp>()
     private val installedAppsModified = AtomicBoolean(false)
@@ -175,13 +176,18 @@ class SuspendAppsLogic(private val appLogic: AppLogic): Observer {
             }
         } while (didModify)
 
-        categoryHandlings.minByOrNull { it.dependsOnMaxTime }?.let {
-            scheduleUpdate((it.dependsOnMaxTime - realTime.timeInMillis))
+        // @tag:app-allowance
+        val allowances = userRelatedData.user.appAllowances.filter { realTime.shouldTrustTimeTemporarily && it.until > realTime.timeInMillis }
+        val allowedPackages = allowances.map { it.packageName }.toSet()
+
+        (categoryHandlings.map { it.dependsOnMaxTime } + allowances.map { it.until }).minOrNull()?.let {
+            scheduleUpdate(it - realTime.timeInMillis)
         }
 
         if (
                 categoryIdsToAllow != lastAllowedCategoryList || categoryApps != lastCategoryApps ||
                 installedAppsModified.getAndSet(false) || defaultCategory != lastDefaultCategory ||
+                allowedPackages != lastAllowedPackages ||
                 enableBlockingAtSystemLevel != lastEnableBlockingAtSystemLevel
         ) {
             val appsToBlock = if (enableBlockingAtSystemLevel) {
@@ -192,7 +198,11 @@ class SuspendAppsLogic(private val appLogic: AppLogic): Observer {
                 installedApps.forEach { packageName ->
                     val appCategories = prepared[packageName] ?: emptySet()
 
-                    if (appCategories.find { categoryId -> categoryIdsToAllow.contains(categoryId) } == null) {
+                    val allowedDespiteCategories = allowedPackages.contains(packageName) && appCategories.none { categoryId ->
+                        categoryHandlingCache.get(categoryId).let { !it.okByBattery || !it.okByTempBlocking }
+                    }
+
+                    if (!allowedDespiteCategories && appCategories.find { categoryId -> categoryIdsToAllow.contains(categoryId) } == null) {
                         if (!AndroidIntegrationApps.appsToNotSuspend.contains(packageName)) {
                             appsToBlock.add(packageName)
                         }
@@ -222,6 +232,7 @@ class SuspendAppsLogic(private val appLogic: AppLogic): Observer {
             lastAllowedCategoryList = categoryIdsToAllow
             lastCategoryApps = categoryApps
             lastDefaultCategory = defaultCategory
+            lastAllowedPackages = allowedPackages
             lastEnableBlockingAtSystemLevel = enableBlockingAtSystemLevel
         }
     }

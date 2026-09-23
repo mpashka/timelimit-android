@@ -14,7 +14,25 @@ interface ChildApi {
 
     // @tag:child-request
     suspend fun ask(packageName: String, word: String)
+
+    /** null — the code does not match (it changes every 30 s). */
+    // @tag:parent-code
+    suspend fun checkParentCode(code: String): ParentCode?
+
+    // @tag:parent-code
+    suspend fun grant(packageName: String, code: ParentCode, scope: GrantScope, until: Long)
 }
+
+data class ParentCode(val code: String, val step: Long)
+
+enum class GrantScope { App, Category }
+
+/**
+ * What a parent next to the child can open with the parent code.
+ * [categoryTitle] null — the app has no category, only the app itself can be opened;
+ * [dayEnd] — "до конца дня": the start of the next mode today, else midnight.
+ */
+data class GrantChoice(val categoryTitle: String?, val dayEnd: Long)
 
 data class App(val packageName: String, val title: String)
 
@@ -33,6 +51,8 @@ sealed interface AppAccess {
         /** what stays for today once it opens; null — no limit */
         val remainingToday: Long?,
         val request: Request,
+        /** null — no parent code on this device (no server secret yet) */
+        val grant: GrantChoice?,
     ) : AppAccess
 }
 

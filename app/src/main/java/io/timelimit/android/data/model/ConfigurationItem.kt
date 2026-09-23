@@ -108,6 +108,7 @@ enum class ConfigurationItemType {
     DhKeyVersion,
     U2fListVersion,
     CurrentDeviceRememberedChoice,
+    ParentCodeSecret,
 }
 
 object ConfigurationItemTypeUtil {
@@ -144,6 +145,7 @@ object ConfigurationItemTypeUtil {
     private const val DH_KEY_VERSION = 32
     private const val U2F_LIST_VERSION = 33
     private const val CURRENT_DEVICE_REMEMBERED_CHOICE = 34
+    private const val PARENT_CODE_SECRET = 35
 
     val TYPES = listOf(
             ConfigurationItemType.OwnDeviceId,
@@ -178,7 +180,8 @@ object ConfigurationItemTypeUtil {
             ConfigurationItemType.DhKey,
             ConfigurationItemType.DhKeyVersion,
             ConfigurationItemType.U2fListVersion,
-            ConfigurationItemType.CurrentDeviceRememberedChoice
+            ConfigurationItemType.CurrentDeviceRememberedChoice,
+            ConfigurationItemType.ParentCodeSecret
     )
 
     fun serialize(value: ConfigurationItemType) = when(value) {
@@ -215,6 +218,7 @@ object ConfigurationItemTypeUtil {
         ConfigurationItemType.DhKeyVersion -> DH_KEY_VERSION
         ConfigurationItemType.U2fListVersion -> U2F_LIST_VERSION
         ConfigurationItemType.CurrentDeviceRememberedChoice -> CURRENT_DEVICE_REMEMBERED_CHOICE
+        ConfigurationItemType.ParentCodeSecret -> PARENT_CODE_SECRET
     }
 
     fun parse(value: Int) = when(value) {
@@ -251,6 +255,7 @@ object ConfigurationItemTypeUtil {
         DH_KEY_VERSION -> ConfigurationItemType.DhKeyVersion
         U2F_LIST_VERSION -> ConfigurationItemType.U2fListVersion
         CURRENT_DEVICE_REMEMBERED_CHOICE -> ConfigurationItemType.CurrentDeviceRememberedChoice
+        PARENT_CODE_SECRET -> ConfigurationItemType.ParentCodeSecret
         else -> throw IllegalArgumentException()
     }
 }

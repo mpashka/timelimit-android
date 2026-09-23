@@ -64,6 +64,18 @@
     <string name="child_warning_title">%1$s: осталось %2$s</string>
     <string name="child_warning_text">%1$s закроется в %2$s — успей сохраниться</string>
 
+    <string name="child_code_hint">Введи код родителя. Он в его телефоне или на сайте — вверху, рядом с колокольчиком. Код меняется каждые 30 секунд.</string>
+    <string name="child_code_wrong">Код не подошёл: возьми новый, он уже сменился</string>
+    <string name="child_code_ok">Код подошёл. Что разрешить?</string>
+    <string name="child_back_to">← Назад к %s</string>
+    <string name="child_other_parent_actions">Другие действия родителя — старый экран</string>
+    <string name="child_grant_category">Все %s</string>
+    <string name="child_no_category">категория</string>
+    <string name="child_grant_category_unavailable">У приложения нет категории — можно разрешить только его само.</string>
+    <string name="child_grant_over_modes">Разрешённое откроется и во сне.</string>
+    <string name="child_grant_day_end">До конца дня</string>
+    <string name="child_until">до %s</string>
+
     <string name="child_hours_minutes">%1$d ч %2$d мин</string>
     <string name="child_hours">%d ч</string>
     <string name="child_minutes">%d мин</string>

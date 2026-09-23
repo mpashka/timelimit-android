@@ -674,6 +674,65 @@ data class MarkTaskPendingAction(val taskId: String): AppLogicAction() {
     }
 }
 
+// @tag:child-request
+data class CreateChildRequestAction(val requestId: String, val packageName: String, val categoryId: String, val word: String): AppLogicAction() {
+    companion object {
+        const val TYPE_VALUE = "CREATE_CHILD_REQUEST"
+        const val MAX_WORD_LENGTH = 100
+    }
+
+    init {
+        IdGenerator.assertIdValid(requestId)
+        if (categoryId.isNotEmpty()) IdGenerator.assertIdValid(categoryId)
+        if (packageName.isEmpty() || packageName.length > 256) throw IllegalArgumentException()
+        if (word.length > MAX_WORD_LENGTH) throw IllegalArgumentException()
+    }
+
+    override fun serialize(writer: JsonWriter) {
+        writer.beginObject()
+        writer.name(TYPE).value(TYPE_VALUE)
+        writer.name("requestId").value(requestId)
+        writer.name("packageName").value(packageName)
+        writer.name("categoryId").value(categoryId)
+        writer.name("word").value(word)
+        writer.endObject()
+    }
+}
+
+// ponytail: the format is this device's proposal for docs/specification/protocol-new-ui.md, section 7;
+// a server without it drops the action and the grant lives until the next full sync
+// @tag:parent-code @tag:app-allowance
+data class GrantByParentCodeAction(
+    val code: String,
+    val step: Long,
+    val answer: String,
+    val packageName: String,
+    val categoryId: String,
+    val until: Long
+): AppLogicAction() {
+    companion object {
+        const val TYPE_VALUE = "GRANT_BY_PARENT_CODE"
+    }
+
+    init {
+        if (answer != ChildRequestAnswer.KIND_APP && answer != ChildRequestAnswer.KIND_CATEGORY) throw IllegalArgumentException()
+        if (answer == ChildRequestAnswer.KIND_CATEGORY) IdGenerator.assertIdValid(categoryId)
+        if (packageName.isEmpty() || packageName.length > 256) throw IllegalArgumentException()
+    }
+
+    override fun serialize(writer: JsonWriter) {
+        writer.beginObject()
+        writer.name(TYPE).value(TYPE_VALUE)
+        writer.name("code").value(code)
+        writer.name("step").value(step)
+        writer.name("answer").value(answer)
+        writer.name("packageName").value(packageName)
+        writer.name("categoryId").value(categoryId)
+        writer.name("until").value(until)
+        writer.endObject()
+    }
+}
+
 data class AddCategoryAppsAction(val categoryId: String, val packageNames: List<String>): ParentAction() {
     companion object {
         const val TYPE_VALUE = "ADD_CATEGORY_APPS"

@@ -172,7 +172,9 @@ data class ServerDeviceList(
 
 data class ServerUserList(
         val version: String,
-        val data: List<ServerUserData>
+        val data: List<ServerUserData>,
+        // @tag:parent-code
+        val parentCodeSecret: String?
 ) {
     companion object {
         private const val VERSION = "version"
@@ -181,12 +183,14 @@ data class ServerUserList(
         fun parse(reader: JsonReader): ServerUserList {
             var version: String? = null
             var data: List<ServerUserData>? = null
+            var parentCodeSecret: String? = null
 
             reader.beginObject()
             while (reader.hasNext()) {
                 when (reader.nextName()) {
                     VERSION -> version = reader.nextString()
                     DATA -> data = ServerUserData.parseList(reader)
+                    "parentCodeSecret" -> parentCodeSecret = reader.nextString()
                     else -> reader.skipValue()
                 }
             }
@@ -194,7 +198,8 @@ data class ServerUserList(
 
             return ServerUserList(
                     version = version!!,
-                    data = data!!
+                    data = data!!,
+                    parentCodeSecret = parentCodeSecret
             )
         }
     }
@@ -216,7 +221,9 @@ data class ServerUserData(
         val flags: Long,
         val limitLoginCategory: String?,
         val preBlockDuration: Long,
-        val urlFilter: UserUrlFilter?
+        val urlFilter: UserUrlFilter?,
+        val childRequests: List<ChildRequest>,
+        val appAllowances: List<AppAllowance>
 ) {
     companion object {
         private const val ID = "id"
@@ -253,6 +260,8 @@ data class ServerUserData(
             var limitLoginCategory: String? = null
             var preBlockDuration = 0L
             var urlFilter: UserUrlFilter? = null
+            var childRequests = emptyList<ChildRequest>()
+            var appAllowances = emptyList<AppAllowance>()
 
             reader.beginObject()
             while (reader.hasNext()) {
@@ -273,6 +282,8 @@ data class ServerUserData(
                     USER_LIMIT_LOGIN_CATEGORY -> if (reader.peek() == JsonToken.NULL) reader.nextNull() else limitLoginCategory = reader.nextString()
                     PRE_BLOCK_DURATION -> preBlockDuration = reader.nextLong()
                     URL_FILTER -> urlFilter = UserUrlFilterJson.parseNullable(reader) // @tag:url-filter
+                    "requests" -> childRequests = ChildRequestJson.parseRequests(reader) // @tag:child-request
+                    "appAllowances" -> appAllowances = ChildRequestJson.parseAllowances(reader) // @tag:app-allowance
                     else -> reader.skipValue()
                 }
             }
@@ -294,7 +305,9 @@ data class ServerUserData(
                     flags = flags,
                     limitLoginCategory = limitLoginCategory,
                     preBlockDuration = preBlockDuration,
-                    urlFilter = urlFilter
+                    urlFilter = urlFilter,
+                    childRequests = childRequests,
+                    appAllowances = appAllowances
             )
         }
 

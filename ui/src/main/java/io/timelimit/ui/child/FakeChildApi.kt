@@ -5,7 +5,10 @@ import io.timelimit.api.AppAccess
 import io.timelimit.api.CategoryToday
 import io.timelimit.api.ChildApi
 import io.timelimit.api.CloseReason
+import io.timelimit.api.GrantChoice
+import io.timelimit.api.GrantScope
 import io.timelimit.api.ModeWindow
+import io.timelimit.api.ParentCode
 import io.timelimit.api.Request
 import io.timelimit.api.Today
 import io.timelimit.api.WaitingRequest
@@ -37,6 +40,7 @@ class FakeChildApi : ChildApi {
             opensAt = NOW + (12 * 60 + 40) * MINUTE,
             remainingToday = null,
             request = request,
+            grant = GrantChoice("Игры", NOW + 160 * MINUTE),
         )
 
         val exampleToday = Today(
@@ -62,4 +66,8 @@ class FakeChildApi : ChildApi {
     override suspend fun ask(packageName: String, word: String) {
         request.value = Request.Sent(System.currentTimeMillis(), word)
     }
+
+    override suspend fun checkParentCode(code: String): ParentCode? = if (code == "417000") ParentCode(code, 0) else null
+
+    override suspend fun grant(packageName: String, code: ParentCode, scope: GrantScope, until: Long) {}
 }

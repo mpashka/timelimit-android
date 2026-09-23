@@ -62,6 +62,7 @@ fun AppAccessScreen(
 ) {
     val access by remember(api, packageName) { api.appAccess(packageName) }.collectAsState(initial = null)
     var wasClosed by remember { mutableStateOf(false) }
+    var parentNearby by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(access) {
@@ -74,10 +75,22 @@ fun AppAccessScreen(
 
     ChildTheme {
         when (val current = access) {
-            is AppAccess.Closed -> ClosedApp(
+            is AppAccess.Closed -> if (parentNearby && current.grant != null) Column(
+                Modifier.fillMaxSize().background(LocalChildColors.current.ground).safeDrawingPadding()
+                    .verticalScroll(rememberScrollState()).padding(24.dp)
+            ) {
+                ParentNearby(
+                    app = current.app,
+                    choice = current.grant!!,
+                    checkCode = api::checkParentCode,
+                    grant = { code, grantScope, until -> api.grant(packageName, code, grantScope, until) },
+                    onBack = { parentNearby = false },
+                    onUpstreamScreen = onParentNearby,
+                )
+            } else ClosedApp(
                 current,
                 onAsk = { word -> scope.launch { api.ask(packageName, word) } },
-                onParentNearby = onParentNearby,
+                onParentNearby = { if (current.grant != null) parentNearby = true else onParentNearby() },
                 onUseThisDevice = onUseThisDevice,
             )
             is AppAccess.Open -> if (wasClosed) OpenApp(current)

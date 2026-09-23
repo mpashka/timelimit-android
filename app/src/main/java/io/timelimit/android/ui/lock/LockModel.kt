@@ -192,11 +192,16 @@ class LockModel(application: Application): AndroidViewModel(application) {
                     hasPremiumOrLocalMode = hasPremiumOrLocalMode
             )
 
+            // @tag:app-allowance
+            val appAllowed = io.timelimit.android.data.model.AppAllowance.activeUntil(
+                deviceAndUserRelatedData.userRelatedData.user.appAllowances, packageName,
+                realTime.timeInMillis, realTime.shouldTrustTimeTemporarily
+            ) != null
             val blockingCategories = appBaseHandling.getCategories(AppBaseHandling.GetCategoriesPurpose.Blocking)
 
             if (blockingCategories.iterator().hasNext()) {
                 val categoryHandlings = blockingCategories.map { handlingCache.get(it) }
-                val blockingHandling = categoryHandlings.find { it.shouldBlockActivities }
+                val blockingHandling = categoryHandlings.find { it.shouldBlockActivities(appAllowed) }
 
                 value = if (blockingHandling == null) LockscreenContent.Close else LockscreenContent.Blocked.BlockedCategory(
                         deviceAndUserRelatedData = deviceAndUserRelatedData,
@@ -206,7 +211,7 @@ class LockModel(application: Application): AndroidViewModel(application) {
                         appPackageName = packageName,
                         appActivityName = activityName
                 ).also { scheduleUpdate((blockingHandling.dependsOnMaxTime - realTime.timeInMillis)) }
-            } else if (appBaseHandling is AppBaseHandling.BlockDueToNoCategory) {
+            } else if (appBaseHandling is AppBaseHandling.BlockDueToNoCategory && !appAllowed) {
                 value = LockscreenContent.Blocked.BlockDueToNoCategory(
                         userRelatedData = deviceAndUserRelatedData.userRelatedData,
                         deviceId = deviceAndUserRelatedData.deviceRelatedData.deviceEntry.id,
