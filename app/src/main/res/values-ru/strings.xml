@@ -11,4 +11,47 @@
     <string name="manage_child_category_no_time_limits_short">без лимита</string>
     <string name="manage_device_default_user_switch_btn">Переключиться на пользователя по умолчанию</string>
     <string name="manage_device_new_ui">Новый интерфейс ребёнка на этом планшете</string>
+
+    <!-- C2·б: the upstream status notification is the quiet always-there line -->
+    <string name="background_logic_whitelisted">можно всегда</string>
+    <string name="background_logic_temporarily_allowed">разрешено на время</string>
+    <string name="background_logic_limits_disabled">родитель разрешил без лимита</string>
+    <string name="background_logic_no_timelimit">без лимита</string>
+    <string name="background_logic_idle_title">Что можно</string>
+    <string name="background_logic_idle_text">Нажми, чтобы посмотреть, сколько осталось</string>
+    <string name="background_logic_using_extra_time">Дополнительное время (%s)</string>
+    <string name="background_logic_opening_lockscreen">Закрываем приложение</string>
+    <string name="background_logic_paused_title">Ограничения выключены</string>
+    <string name="background_logic_paused_text">Сейчас можно всё</string>
+    <plurals name="util_time_seconds">
+        <item quantity="one">%d секунда</item>
+        <item quantity="few">%d секунды</item>
+        <item quantity="many">%d секунд</item>
+        <item quantity="other">%d секунды</item>
+    </plurals>
+    <plurals name="util_time_minutes">
+        <item quantity="one">%d минута</item>
+        <item quantity="few">%d минуты</item>
+        <item quantity="many">%d минут</item>
+        <item quantity="other">%d минуты</item>
+    </plurals>
+    <plurals name="util_time_hours">
+        <item quantity="one">%d час</item>
+        <item quantity="few">%d часа</item>
+        <item quantity="many">%d часов</item>
+        <item quantity="other">%d часа</item>
+    </plurals>
+    <plurals name="util_time_days">
+        <item quantity="one">%d день</item>
+        <item quantity="few">%d дня</item>
+        <item quantity="many">%d дней</item>
+        <item quantity="other">%d дня</item>
+    </plurals>
+    <string name="util_time_blocked">Закрыто</string>
+    <string name="util_time_less_minute">меньше минуты</string>
+    <string name="util_limit_hours_and_minutes">%1$s %2$s</string>
+    <string name="util_time_remaining">осталось %1$s</string>
+    <string name="util_time_done">Время вышло</string>
+    <string name="util_time_pause_in">Перерыв через %s</string>
+    <string name="util_time_pause_shortly">Скоро перерыв</string>
 </resources>

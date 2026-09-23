@@ -15,6 +15,8 @@
  */
 package io.timelimit.android.integration.platform.android
 
+import io.timelimit.android.child.UiChoice
+import io.timelimit.android.child.WhatCanActivity
 import android.app.ActivityManager
 import android.app.NotificationManager
 import android.app.Service
@@ -89,6 +91,8 @@ class BackgroundService: Service() {
                 .setContentIntent(
                     if (appStatusMessage.showErrorMessage)
                         BackgroundActionService.getOpenAppWithErrorIntent(context)
+                    else if (UiChoice.isNew(context))
+                        WhatCanActivity.pendingIntent(context) // @tag:new-ui
                     else
                         BackgroundActionService.getOpenAppIntent(context)
                 )
