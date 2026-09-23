@@ -29,6 +29,7 @@ import androidx.lifecycle.Observer
 import androidx.lifecycle.map
 import io.timelimit.android.R
 import io.timelimit.android.async.Threads
+import io.timelimit.android.child.WidgetClickActivity
 import io.timelimit.android.livedata.mergeLiveDataWaitForValues
 import io.timelimit.android.logic.DefaultAppLogic
 import io.timelimit.android.ui.manage.child.category.CategoryItemLeftPadding
@@ -107,7 +108,9 @@ class TimesWidgetService: RemoteViewsService() {
                 return RemoteViews(packageName, categoryItemView)
             }
 
+            // @tag:new-ui
             fun createCategoryItem(title: String?, subtitle: String, paddingLeft: Int) = RemoteViews(packageName, categoryItemView).also { result ->
+                result.setOnClickFillInIntent(R.id.widgetInnerContainer, Intent())
                 result.setTextViewText(R.id.title, title ?: "")
                 result.setTextViewText(R.id.subtitle, subtitle)
 
@@ -126,11 +129,11 @@ class TimesWidgetService: RemoteViewsService() {
                             getString(R.string.manage_child_category_no_time_limits_short)
                         else {
                             val remainingTimeToday = category.remainingTimeToday.coerceAtLeast(0) / (1000 * 60)
-                            val minutes = remainingTimeToday % 60
-                            val hours = remainingTimeToday / 60
+                            val minutes = (remainingTimeToday % 60).toInt()
+                            val hours = (remainingTimeToday / 60).toInt()
 
-                            if (hours == 0L) "$minutes m"
-                            else "$hours h $minutes m"
+                            if (hours == 0) getString(R.string.widget_time_minutes, minutes)
+                            else getString(R.string.widget_time_hours_minutes, hours, minutes)
                         },
                         subtitle = category.categoryName,
                         // not much space here => / 2
@@ -140,7 +143,7 @@ class TimesWidgetService: RemoteViewsService() {
                 is TimesWidgetItem.TextMessage -> createCategoryItem(null, getString(item.textRessourceId), 0)
                 is TimesWidgetItem.DefaultUserButton -> RemoteViews(packageName, R.layout.widget_times_button).also { result ->
                     result.setTextViewText(R.id.button, getString(R.string.manage_device_default_user_switch_btn))
-                    result.setOnClickFillInIntent(R.id.button, Intent())
+                    result.setOnClickFillInIntent(R.id.button, WidgetClickActivity.switchToDefaultUser())
                 }
             }
         }

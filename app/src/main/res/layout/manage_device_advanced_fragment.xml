@@ -46,6 +46,20 @@
                 <include android:id="@+id/manage_background_sync"
                     layout="@layout/manage_device_background_sync_view" />
 
+                <androidx.cardview.widget.CardView
+                    android:id="@+id/new_ui_card"
+                    android:visibility="gone"
+                    app:cardUseCompatPadding="true"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+                    <CheckBox
+                        android:id="@+id/new_ui_checkbox"
+                        android:padding="8dp"
+                        android:text="@string/manage_device_new_ui"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content" />
+                </androidx.cardview.widget.CardView>
+
                 <include
                     android:id="@+id/manage_device"
                     layout="@layout/manage_device_view" />

@@ -28,7 +28,7 @@ import io.timelimit.android.R
 import io.timelimit.android.async.Threads
 import io.timelimit.android.coroutines.executeAndWait
 import io.timelimit.android.coroutines.runAsync
-import io.timelimit.android.integration.platform.android.BackgroundActionService
+import io.timelimit.android.child.WidgetClickActivity
 import io.timelimit.android.logic.DefaultAppLogic
 
 class TimesWidgetProvider: AppWidgetProvider() {
@@ -62,7 +62,7 @@ class TimesWidgetProvider: AppWidgetProvider() {
                     )
 
                     views.setRemoteAdapter(android.R.id.list, TimesWidgetService.intent(context, appWidgetId, translucent))
-                    views.setPendingIntentTemplate(android.R.id.list, BackgroundActionService.getSwitchToDefaultUserIntent(context))
+                    views.setPendingIntentTemplate(android.R.id.list, WidgetClickActivity.template(context))
                     views.setEmptyView(android.R.id.list, android.R.id.empty)
 
                     appWidgetManager.updateAppWidget(appWidgetId, views)

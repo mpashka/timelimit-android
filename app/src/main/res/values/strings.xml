@@ -1806,6 +1806,9 @@
     <string name="widget_config_mode_filter">Filter visible Categories</string>
     <string name="widget_config_error_filter_empty">You must select at least one category</string>
     <string name="widget_config_other_translucent">Enable translucency</string>
+    <string name="widget_time_minutes">%d m</string>
+    <string name="widget_time_hours_minutes">%1$d h %2$d m</string>
+    <string name="manage_device_new_ui">New child interface on this device</string>
 
     <string name="wiazrd_next">Next</string>
 

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ponytail: only what the child sees outside the new interface (the widget);
+     the rest of the upstream interface stays English/German -->
+<resources>
+    <string name="widget_msg_unconfigured">Виджет работает только на планшете с ограничениями</string>
+    <string name="widget_msg_no_child">Сейчас планшетом пользуется не ребёнок</string>
+    <string name="widget_msg_no_category">У ребёнка ещё нет категорий</string>
+    <string name="widget_msg_no_filtered_category">Для виджета не выбрано ни одной категории</string>
+    <string name="widget_time_minutes">%d мин</string>
+    <string name="widget_time_hours_minutes">%1$d ч %2$d мин</string>
+    <string name="manage_child_category_no_time_limits_short">без лимита</string>
+    <string name="manage_device_default_user_switch_btn">Переключиться на пользователя по умолчанию</string>
+    <string name="manage_device_new_ui">Новый интерфейс ребёнка на этом планшете</string>
+</resources>

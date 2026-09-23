@@ -54,6 +54,7 @@ import io.timelimit.android.extensions.registerNotExportedReceiver
 import io.timelimit.android.integration.platform.*
 import io.timelimit.android.integration.platform.android.foregroundapp.ForegroundAppHelper
 import io.timelimit.android.ui.homescreen.HomescreenActivity
+import io.timelimit.android.child.UiChoice
 import io.timelimit.android.ui.lock.LockActivity
 import io.timelimit.android.ui.manage.device.manage.permission.AdbDeviceAdminDialogFragment
 import io.timelimit.android.ui.manage.device.manage.permission.AdbUsageStatsDialogFragment
@@ -261,8 +262,9 @@ class AndroidIntegration(context: Context): PlatformIntegration(maximumProtectio
         }
     }
 
+    // @tag:new-ui
     override fun showAppLockScreen(currentPackageName: String, currentActivityName: String?) {
-        LockActivity.start(context, currentPackageName, currentActivityName)
+        UiChoice.startLockScreen(context, currentPackageName, currentActivityName)
     }
 
     override fun showAnnoyScreen() {

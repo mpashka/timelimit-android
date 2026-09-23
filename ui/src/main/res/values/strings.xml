@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ponytail: only Russian, the new interface is written for one family;
+     add values-en when someone outside it needs the interface -->
+<resources>
+    <string name="child_category_fallback">Это приложение</string>
+    <string name="child_category_line">· категория %s</string>
+
+    <string name="child_reason_limit_over">%s: лимит на сегодня кончился</string>
+    <string name="child_reason_extra_time_later">Сейчас нельзя, но у тебя есть ещё %s</string>
+    <string name="child_reason_mode_named">Сейчас %s — закрыто всё, кроме «Всегда можно»</string>
+    <string name="child_reason_mode">Сейчас это время закрыто</string>
+    <string name="child_reason_closed_by_parent">%s: родитель закрыл</string>
+    <string name="child_reason_break">Перерыв: %1$s подряд — отдохни %2$s</string>
+    <string name="child_reason_new_app">Новое приложение — родитель ещё не решил</string>
+    <string name="child_reason_low_battery">Мало заряда — поставь планшет на зарядку</string>
+    <string name="child_reason_wifi_required">%s: работает только в домашнем Wi-Fi</string>
+    <string name="child_reason_forbidden_network">%s: в этой сети закрыто</string>
+    <string name="child_reason_no_exact_time">Планшет не знает точное время — поэтому закрыто</string>
+    <string name="child_reason_no_network_permission">Планшету нужно разрешение — поэтому закрыто</string>
+    <string name="child_reason_other_device">%s: сейчас идут на другом планшете</string>
+
+    <string name="child_opens_at">откроется %s в</string>
+    <string name="child_opens_unknown_parent">пока родитель не откроет</string>
+    <string name="child_day_today">сегодня</string>
+    <string name="child_day_tomorrow">завтра</string>
+    <string name="child_after_break_remaining">После перерыва на сегодня останется %s.</string>
+    <string name="child_remaining_today">Осталось на сегодня: %s</string>
+
+    <string name="child_call_parent">Позови родителя</string>
+    <string name="child_call_parent_or_wifi">Или подключись к Wi-Fi — тогда откроется само.</string>
+    <string name="child_tell_parent">Скажи ему: «%s»</string>
+    <string name="child_tell_parent_no_time">Планшет потерял время, ему нужен интернет</string>
+    <string name="child_tell_parent_permission">Планшету нужно разрешение на проверку сети</string>
+
+    <string name="child_word_label">Слово родителю — можно не писать</string>
+    <string name="child_word_hint">Например: дострою дом и всё</string>
+    <string name="child_ask">Попросить</string>
+    <string name="child_ask_again">Попросить снова</string>
+    <string name="child_ask_again_from">Попросить снова — с %s</string>
+    <string name="child_ask_waiting">Уже попросил, ждём</string>
+    <string name="child_request_sending">Отправляем…</string>
+    <string name="child_request_sent">Просьба ушла родителю в %s</string>
+    <string name="child_request_sent_hint">Ответ появится здесь.</string>
+    <string name="child_request_refused">Отказано в %s</string>
+    <string name="child_request_expired">Просьба истекла</string>
+    <string name="child_request_expired_hint">Родитель не ответил за 30 минут — наверное, не видел. Можно попросить снова.</string>
+    <string name="child_parent_nearby">Родитель рядом</string>
+    <string name="child_connect_wifi">Подключить Wi-Fi</string>
+    <string name="child_use_this_device">Играть на этом планшете</string>
+
+    <string name="child_open_title">Можно — %s открыто</string>
+    <string name="child_allowed_until">разрешено до</string>
+    <string name="child_allowed_by">Разрешил: %s</string>
+    <string name="child_play">Играть</string>
+
+    <string name="child_what_can_title">Что сейчас можно</string>
+    <string name="child_no_limit">без лимита</string>
+    <string name="child_closed_now">закрыто</string>
+    <string name="child_mode_next_named">В %1$s %2$s — закроется до %3$s</string>
+    <string name="child_mode_next">В %1$s всё закроется до %2$s</string>
+    <string name="child_waiting_request">%1$s — просьба ждёт ответа с %2$s</string>
+    <string name="child_no_categories">Родитель ещё ничего не настроил</string>
+
+    <string name="child_hours_minutes">%1$d ч %2$d мин</string>
+    <string name="child_hours">%d ч</string>
+    <string name="child_minutes">%d мин</string>
+</resources>

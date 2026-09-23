@@ -26,6 +26,7 @@ import androidx.lifecycle.Observer
 import androidx.lifecycle.map
 import androidx.lifecycle.switchMap
 import io.timelimit.android.R
+import io.timelimit.android.child.UiChoice
 import io.timelimit.android.data.model.Device
 import io.timelimit.android.data.model.User
 import io.timelimit.android.databinding.ManageDeviceAdvancedFragmentBinding
@@ -95,6 +96,15 @@ class ManageDeviceAdvancedFragment : Fragment(), FragmentWithCustomTitle {
                 activityViewModel = auth,
                 fragmentManager = parentFragmentManager
         )
+
+        // @tag:new-ui
+        isThisDevice.observe(viewLifecycleOwner) { binding.newUiCard.visibility = if (it) View.VISIBLE else View.GONE }
+        binding.newUiCheckbox.isChecked = UiChoice.isNew(requireContext())
+        binding.newUiCheckbox.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked == UiChoice.isNew(requireContext())) return@setOnCheckedChangeListener
+            if (auth.requestAuthenticationOrReturnTrue()) UiChoice.setNew(requireContext(), isChecked)
+            else binding.newUiCheckbox.isChecked = !isChecked
+        }
 
         binding.handlers = object: ManageDeviceAdvancedFragmentHandlers {
             override fun showAuthenticationScreen() {

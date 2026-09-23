@@ -21,7 +21,7 @@ plugins {
     id "androidx.navigation.safeargs.kotlin"
     id 'kotlin-kapt'
     id 'com.squareup.wire'
-    id("org.jetbrains.kotlin.plugin.compose") version "2.2.10"
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 android {
@@ -182,6 +182,8 @@ dependencies {
     def paging_version = "3.3.6"
 
     implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation project(':api')
+    implementation project(':ui')
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.3.10"
     implementation 'androidx.appcompat:appcompat:1.7.1'
     implementation 'androidx.core:core:1.17.0'
