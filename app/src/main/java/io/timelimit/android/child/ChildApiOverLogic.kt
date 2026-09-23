@@ -104,8 +104,8 @@ class ChildApiOverLogic(private val logic: AppLogic) : ChildApi {
         ApplyActionUtil.applyAppLogicAction(
             action = GrantByParentCodeAction(
                 code = code.code, step = code.step,
-                answer = if (scope == GrantScope.App) ChildRequestAnswer.KIND_APP else ChildRequestAnswer.KIND_CATEGORY,
-                packageName = packageName, categoryId = categoryId, until = until
+                grant = if (scope == GrantScope.App) ChildRequestAnswer.KIND_APP else ChildRequestAnswer.KIND_CATEGORY,
+                packageName = if (scope == GrantScope.App) packageName else "", categoryId = categoryId, until = until
             ),
             appLogic = logic,
             ignoreIfDeviceIsNotConfigured = true

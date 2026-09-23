@@ -436,7 +436,7 @@ object LocalDatabaseAppLogicActionDispatcher {
                     val device = database.device().getDeviceByIdSync(deviceId)!!
                     val user = database.user().getUserByIdSync(device.currentUserId) ?: throw IllegalStateException()
 
-                    if (action.answer == ChildRequestAnswer.KIND_APP) {
+                    if (action.grant == ChildRequestAnswer.KIND_APP) {
                         val until = user.appAllowances.filter { it.packageName == action.packageName }
                             .maxOfOrNull { it.until }?.coerceAtLeast(action.until) ?: action.until
 

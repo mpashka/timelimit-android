@@ -699,13 +699,13 @@ data class CreateChildRequestAction(val requestId: String, val packageName: Stri
     }
 }
 
-// ponytail: the format is this device's proposal for docs/specification/protocol-new-ui.md, section 7;
-// a server without it drops the action and the grant lives until the next full sync
+// docs/specification/protocol-new-ui.md, section 7; a refused grant stays open on this tablet only
+// until the next full sync
 // @tag:parent-code @tag:app-allowance
 data class GrantByParentCodeAction(
     val code: String,
     val step: Long,
-    val answer: String,
+    val grant: String,
     val packageName: String,
     val categoryId: String,
     val until: Long
@@ -715,9 +715,11 @@ data class GrantByParentCodeAction(
     }
 
     init {
-        if (answer != ChildRequestAnswer.KIND_APP && answer != ChildRequestAnswer.KIND_CATEGORY) throw IllegalArgumentException()
-        if (answer == ChildRequestAnswer.KIND_CATEGORY) IdGenerator.assertIdValid(categoryId)
-        if (packageName.isEmpty() || packageName.length > 256) throw IllegalArgumentException()
+        when (grant) {
+            ChildRequestAnswer.KIND_APP -> if (packageName.isEmpty() || packageName.length > 256 || categoryId.isNotEmpty()) throw IllegalArgumentException()
+            ChildRequestAnswer.KIND_CATEGORY -> { IdGenerator.assertIdValid(categoryId); if (packageName.isNotEmpty()) throw IllegalArgumentException() }
+            else -> throw IllegalArgumentException()
+        }
     }
 
     override fun serialize(writer: JsonWriter) {
@@ -725,7 +727,7 @@ data class GrantByParentCodeAction(
         writer.name(TYPE).value(TYPE_VALUE)
         writer.name("code").value(code)
         writer.name("step").value(step)
-        writer.name("answer").value(answer)
+        writer.name("grant").value(grant)
         writer.name("packageName").value(packageName)
         writer.name("categoryId").value(categoryId)
         writer.name("until").value(until)
