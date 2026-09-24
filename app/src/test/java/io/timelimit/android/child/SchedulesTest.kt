@@ -39,6 +39,19 @@ class SchedulesTest {
         val blocked = Schedules.blockedMinutes(related)
         assertTrue(blocked[tuesday2200])
         assertEquals(9 * 60, ModeClock.minutesUntilOpen(blocked, tuesday2200))
-        assertEquals(Schedules.Kind.Sleep, Schedules.kindAt(blocked, tuesday2200))
+        assertEquals(Schedules.Kind.Sleep, Schedules.kindAt(related, tuesday2200))
+    }
+
+    @Test
+    fun aDaytimeBanTouchingAnEveningOneAtMidnightIsNotSleep() {
+        val related = CategoryRelatedData(
+            games, listOf(ban("daytm1", 31, 0, 16 * 60), ban("evenin", 127, 21 * 60 + 30, 24 * 60 - 1)),
+            emptyList(), emptyList(), emptyList(), emptyList(), emptyList()
+        )
+        val tuesday1529 = ModeClock.DAY + 15 * 60 + 29
+
+        assertTrue(Schedules.blockedMinutes(related)[tuesday1529])
+        assertEquals(null, Schedules.kindAt(related, tuesday1529))
+        assertEquals(Schedules.Kind.Sleep, Schedules.kindAt(related, ModeClock.DAY + 22 * 60))
     }
 }

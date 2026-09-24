@@ -112,14 +112,18 @@ object Schedules {
         return result
     }
 
-    /** The name of the mode a blocked minute belongs to, by the shape of its window. */
-    fun kindAt(blocked: BitSet, minute: Int): Kind? {
-        if (!blocked[minute % ModeClock.WEEK]) return null
+    /**
+     * The name of the mode that closes the category at [minuteOfWeek], from the ban covering that minute.
+     * Not from the blocked window: two bans that touch at midnight (21:30–24:00 and 00:00–16:01) make one
+     * window that looks like sleep, while the one closing at 15:29 is a daytime ban.
+     */
+    fun kindAt(category: CategoryRelatedData, minuteOfWeek: Int): Kind? {
+        val day = (minuteOfWeek % ModeClock.WEEK) / ModeClock.DAY
+        val minute = minuteOfWeek % ModeClock.DAY
+        val covering = readBans(listOf(category)).filter { ban ->
+            segments(ban).any { (days, start, end) -> days and (1 shl day) != 0 && minute in start..end }
+        }
 
-        val back = (0 until ModeClock.WEEK).firstOrNull { !blocked[(minute - it + ModeClock.WEEK) % ModeClock.WEEK] } ?: return null
-        val start = (minute - back + 1 + ModeClock.WEEK) % ModeClock.WEEK
-        val length = ModeClock.minutesUntilOpen(blocked, start) ?: return null
-
-        return kindOf(start % ModeClock.DAY, (start + length - 1) % ModeClock.DAY)
+        return covering.firstNotNullOfOrNull { kindOf(it.start, it.end) }
     }
 }

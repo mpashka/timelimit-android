@@ -254,7 +254,7 @@ class ChildApiOverLogic(private val logic: AppLogic) : ChildApi {
         BlockingReason.TimeOver -> CloseReason.LimitOver
         BlockingReason.TimeOverExtraTimeCanBeUsedLater -> CloseReason.ExtraTimeLater(handling.createdWithExtraTime)
         BlockingReason.BlockedAtThisTime -> CloseReason.Mode(
-            Schedules.kindAt(Schedules.blockedMinutes(handling.createdWithCategoryRelatedData), getMinuteOfWeek(now, handling.createdWithUserRelatedData.timeZone))?.toApi()
+            Schedules.kindAt(handling.createdWithCategoryRelatedData, getMinuteOfWeek(now, handling.createdWithUserRelatedData.timeZone))?.toApi()
         )
         BlockingReason.SessionDurationLimit -> handling.createdWithCategoryRelatedData.durations
             .filter { it.lastUsage + it.sessionPauseDuration > now }
@@ -322,12 +322,11 @@ class ChildApiOverLogic(private val logic: AppLogic) : ChildApi {
             )
         }
         val nextMode = user.categories
-            .map { Schedules.blockedMinutes(it) }
-            .mapNotNull { bits -> ModeClock.nextWindow(bits, nowMinute, ModeClock.DAY)?.let { it to bits } }
+            .mapNotNull { category -> ModeClock.nextWindow(Schedules.blockedMinutes(category), nowMinute, ModeClock.DAY)?.let { it to category } }
             .minByOrNull { it.first.first }
-            ?.let { (window, bits) ->
+            ?.let { (window, category) ->
                 val (start, length) = window
-                ModeWindow(Schedules.kindAt(bits, nowMinute + start)?.toApi(), minuteStart + start * MINUTE, minuteStart + (start + length) * MINUTE)
+                ModeWindow(Schedules.kindAt(category, nowMinute + start)?.toApi(), minuteStart + start * MINUTE, minuteStart + (start + length) * MINUTE)
             }
 
         return Today(time.timeInMillis, categories, waiting, nextMode)

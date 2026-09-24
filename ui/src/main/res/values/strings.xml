@@ -8,6 +8,7 @@
     <string name="child_reason_limit_over">%s: лимит на сегодня кончился</string>
     <string name="child_reason_extra_time_later">Сейчас нельзя, но у тебя есть ещё %s</string>
     <string name="child_reason_mode_named">Сейчас %s — закрыто всё, кроме «Всегда можно»</string>
+    <string name="child_reason_closed_until">Закрыто до %s</string>
     <string name="child_reason_mode">Сейчас это время закрыто</string>
     <string name="child_reason_closed_by_parent">%s: родитель закрыл</string>
     <string name="child_reason_break">Перерыв: %1$s подряд — отдохни %2$s</string>

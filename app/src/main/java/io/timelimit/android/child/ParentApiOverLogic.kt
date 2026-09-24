@@ -184,13 +184,13 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
         val categories = sorted.map { (depth, category) -> parentCategory(category, depth, cache, todayEpoch, today, nowMinute, minuteStart, now) }
         val categoryRefs = categories.map { it.ref }
 
-        val windows = data.categories.filter { it.category.parentCategoryId.isEmpty() }.map { Schedules.blockedMinutes(it) }
-        val modeNow = windows.filter { it[nowMinute] }
-            .mapNotNull { bits -> ModeClock.minutesUntilOpen(bits, nowMinute)?.let { it to bits } }.minByOrNull { it.first }
-            ?.let { (length, bits) -> ModeWindow(Schedules.kindAt(bits, nowMinute)?.toApi(), minuteStart, minuteStart + length * MINUTE) }
-        val nextMode = windows.mapNotNull { bits -> ModeClock.nextWindow(bits, nowMinute, ModeClock.DAY)?.let { it to bits } }.minByOrNull { it.first.first }
-            ?.let { (window, bits) ->
-                ModeWindow(Schedules.kindAt(bits, nowMinute + window.first)?.toApi(), minuteStart + window.first * MINUTE, minuteStart + (window.first + window.second) * MINUTE)
+        val windows = data.categories.filter { it.category.parentCategoryId.isEmpty() }.map { it to Schedules.blockedMinutes(it) }
+        val modeNow = windows.filter { it.second[nowMinute] }
+            .mapNotNull { (category, bits) -> ModeClock.minutesUntilOpen(bits, nowMinute)?.let { it to category } }.minByOrNull { it.first }
+            ?.let { (length, category) -> ModeWindow(Schedules.kindAt(category, nowMinute)?.toApi(), minuteStart, minuteStart + length * MINUTE) }
+        val nextMode = windows.mapNotNull { (category, bits) -> ModeClock.nextWindow(bits, nowMinute, ModeClock.DAY)?.let { it to category } }.minByOrNull { it.first.first }
+            ?.let { (window, category) ->
+                ModeWindow(Schedules.kindAt(category, nowMinute + window.first)?.toApi(), minuteStart + window.first * MINUTE, minuteStart + (window.first + window.second) * MINUTE)
             }
         val midnight = today.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
         val morning = modeNow?.until ?: nextMode?.until ?: (midnight + 7 * 60 * MINUTE)

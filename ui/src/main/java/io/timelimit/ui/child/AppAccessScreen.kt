@@ -153,10 +153,11 @@ private fun BigTime(label: String, time: String, color: Color) {
 }
 
 @Composable
-private fun reasonText(reason: CloseReason, category: String, app: String): String = when (reason) {
+private fun reasonText(reason: CloseReason, category: String, app: String, opensAt: Long?): String = when (reason) {
     CloseReason.LimitOver -> stringResource(R.string.child_reason_limit_over, category)
     is CloseReason.ExtraTimeLater -> stringResource(R.string.child_reason_extra_time_later, formatDuration(reason.extraTime))
     is CloseReason.Mode -> reason.kind?.let { stringResource(R.string.child_reason_mode_named, modeName(it)) }
+        ?: opensAt?.let { stringResource(R.string.child_reason_closed_until, formatClock(it)) }
         ?: stringResource(R.string.child_reason_mode)
     CloseReason.ClosedByParent -> stringResource(R.string.child_reason_closed_by_parent, category)
     is CloseReason.Break -> stringResource(
@@ -214,7 +215,7 @@ fun ClosedApp(
                 access.categoryTitle?.let { stringResource(R.string.child_category_line, it) }
             )
             Spacer(Modifier.height(24.dp))
-            Text(reasonText(reason, category, access.app.title), color = colors.text, fontSize = 26.sp, fontWeight = FontWeight.SemiBold)
+            Text(reasonText(reason, category, access.app.title, access.opensAt), color = colors.text, fontSize = 26.sp, fontWeight = FontWeight.SemiBold)
 
             when {
                 reason == CloseReason.NoExactTime || reason == CloseReason.NoNetworkPermission -> {
