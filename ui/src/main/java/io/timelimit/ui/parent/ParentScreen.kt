@@ -26,7 +26,7 @@ import androidx.compose.material.SnackbarResult
 import androidx.compose.material.BottomNavigationItem
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
-import androidx.compose.material.Scaffold
+import androidx.compose.material.SnackbarHost
 import androidx.compose.material.SnackbarHostState
 import androidx.compose.material.Text
 import androidx.compose.material.TextButton
@@ -107,46 +107,49 @@ fun ParentScreen(api: ParentApi, startOnRequests: Boolean, openOldInterface: () 
         val colors = LocalChildColors.current
         val child = home?.child
 
-        Scaffold(
-            modifier = Modifier.safeDrawingPadding(),
-            scaffoldState = androidx.compose.material.rememberScaffoldState(snackbarHostState = snackbar),
-            topBar = { Header(child, home?.children.orEmpty(), api::selectChild, code, child?.requests?.size ?: 0, onBell = { requestsOpen = !requestsOpen; openApp = null }) },
-            bottomBar = {
-                BottomNavigation(backgroundColor = colors.surface, contentColor = colors.action) {
-                    ParentTab.entries.forEach { item ->
-                        BottomNavigationItem(
-                            selected = tab == item && !requestsOpen && openApp == null,
-                            onClick = { tab = item; requestsOpen = false; openApp = null },
-                            icon = { Icon(item.icon, contentDescription = null) },
-                            label = { Text(stringResource(item.title), fontSize = 11.sp) }
-                        )
-                    }
-                }
-            },
-            backgroundColor = colors.ground,
-        ) { padding ->
-            // one column of phone width in the middle of a wide screen, so a name and its time stay together
-            Box(Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()), contentAlignment = Alignment.TopCenter) { Column(
-                Modifier.widthIn(max = 720.dp).fillMaxWidth().padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                home?.cannotAct?.let { CannotActCard(it, signIn) }
+        // header, content, bottom bar stacked in a column: the scrolled content ends where the bar starts
+        Column(Modifier.fillMaxSize().background(colors.ground).safeDrawingPadding()) {
+            Header(child, home?.children.orEmpty(), api::selectChild, code, child?.requests?.size ?: 0, onBell = { requestsOpen = !requestsOpen; openApp = null })
 
-                when {
-                    home == null -> {}
-                    child == null -> Text(stringResource(R.string.parent_no_child), color = colors.secondary)
-                    requestsOpen -> RequestsScreen(child, api, actions)
-                    openApp != null -> AppCard(child, openApp!!, api, actions, onBack = { openApp = null })
-                    tab == ParentTab.Today -> {
-                        TodayScreen(child, api, actions, onApp = { openApp = it })
-                        TextButton(onClick = openOldInterface) { Text(stringResource(R.string.parent_open_old)) }
+            Box(Modifier.weight(1f).fillMaxWidth()) {
+                // one column of phone width in the middle of a wide screen, so a name and its time stay together
+                Box(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), contentAlignment = Alignment.TopCenter) {
+                    Column(
+                        Modifier.widthIn(max = 720.dp).fillMaxWidth().padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        home?.cannotAct?.let { CannotActCard(it, signIn) }
+
+                        when {
+                            home == null -> {}
+                            child == null -> Text(stringResource(R.string.parent_no_child), color = colors.secondary)
+                            requestsOpen -> RequestsScreen(child, api, actions)
+                            openApp != null -> AppCard(child, openApp!!, api, actions, onBack = { openApp = null })
+                            tab == ParentTab.Today -> {
+                                TodayScreen(child, api, actions, onApp = { openApp = it })
+                                TextButton(onClick = openOldInterface) { Text(stringResource(R.string.parent_open_old)) }
+                            }
+                            tab == ParentTab.Apps -> AppsScreen(child, api, actions, onApp = { openApp = it })
+                            tab == ParentTab.Tablets -> TabletsScreen(child)
+                            tab == ParentTab.Modes -> ModesScreen(child, api, actions)
+                            tab == ParentTab.Sites -> SitesScreen(child, api, actions)
+                        }
                     }
-                    tab == ParentTab.Apps -> AppsScreen(child, api, actions, onApp = { openApp = it })
-                    tab == ParentTab.Tablets -> TabletsScreen(child)
-                    tab == ParentTab.Modes -> ModesScreen(child, api, actions)
-                    tab == ParentTab.Sites -> SitesScreen(child, api, actions)
                 }
-            } }
+
+                SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
+            }
+
+            BottomNavigation(backgroundColor = colors.surface, contentColor = colors.action) {
+                ParentTab.entries.forEach { item ->
+                    BottomNavigationItem(
+                        selected = tab == item && !requestsOpen && openApp == null,
+                        onClick = { tab = item; requestsOpen = false; openApp = null },
+                        icon = { Icon(item.icon, contentDescription = null) },
+                        label = { Text(stringResource(item.title), fontSize = 11.sp) }
+                    )
+                }
+            }
         }
     }
 }

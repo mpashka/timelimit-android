@@ -13,6 +13,7 @@ object CategoryTitles {
         "allowed games" to "Игры",
         "games" to "Игры",
         "other" to "Прочее",
+        "unknown" to "Без категории",
     )
 
     fun display(title: String): String = names[title.trim().lowercase()] ?: title
