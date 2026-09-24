@@ -20,8 +20,18 @@ object UiChoice {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_NEW, true)
 
     fun setNew(context: Context, enable: Boolean) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY_NEW, enable).apply()
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY_NEW, enable).commit()
+        // apps suspended for the old interface are released at once, not at the next recount
+        DefaultAppLogic.with(context).suspendAppsLogic.triggerUpdate()
     }
+
+    /**
+     * A suspended app is stopped by the system's own «blocked by your organisation» dialog, so the new lock
+     * screen with «Попросить» never shows; with the new interface apps are not suspended at all.
+     * ponytail: without suspension a closed app flashes before the lock screen covers it; if the flash
+     * matters, suspend again and open our lock screen from the launcher (TimeLimit as the home screen)
+     */
+    fun suspendsApps(systemLevelBlocking: Boolean, newUi: Boolean): Boolean = systemLevelBlocking && !newUi
 
     private const val EXTRA_STAY_OLD = "stayInOldInterface"
     private const val EXTRA_SIGN_IN = "signInKeepingIt"

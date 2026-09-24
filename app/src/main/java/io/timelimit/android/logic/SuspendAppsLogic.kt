@@ -15,6 +15,8 @@
  */
 package io.timelimit.android.logic
 
+import io.timelimit.android.child.UiChoice
+
 import io.timelimit.android.async.Threads
 import io.timelimit.android.coroutines.runAsyncExpectForever
 import io.timelimit.android.data.invalidation.Observer
@@ -62,7 +64,7 @@ class SuspendAppsLogic(private val appLogic: AppLogic): Observer {
         triggerUpdate()
     }
 
-    private fun triggerUpdate() {
+    fun triggerUpdate() {
         pendingSync.set(true); executor.submit(backgroundRunnable)
     }
 
@@ -108,7 +110,11 @@ class SuspendAppsLogic(private val appLogic: AppLogic): Observer {
             }
 
         val isRestrictedUser = userAndDeviceRelatedData?.userRelatedData?.user?.type == UserType.Child
-        val enableBlockingAtSystemLevel = userAndDeviceRelatedData?.deviceRelatedData?.isExperimentalFlagSetSync(ExperimentalFlags.SYSTEM_LEVEL_BLOCKING) ?: false
+        // @tag:new-ui
+        val enableBlockingAtSystemLevel = UiChoice.suspendsApps(
+            systemLevelBlocking = userAndDeviceRelatedData?.deviceRelatedData?.isExperimentalFlagSetSync(ExperimentalFlags.SYSTEM_LEVEL_BLOCKING) ?: false,
+            newUi = UiChoice.isNew(appLogic.context)
+        )
         val hasManagedFeatures = featureCategoryApps.isNotEmpty()
         val enableBlocking = isRestrictedUser && (enableBlockingAtSystemLevel || hasManagedFeatures)
 
