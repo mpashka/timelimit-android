@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.LinearProgressIndicator
 import androidx.compose.material.OutlinedButton
+import androidx.compose.material.OutlinedTextField
+import androidx.compose.material.TextButton
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -43,6 +45,7 @@ import io.timelimit.ui.child.formatClock
 import io.timelimit.ui.child.formatDuration
 
 private const val MINUTE = 60_000L
+private const val MAX_CATEGORY_TITLE = 50
 
 @Composable
 fun Card(content: @Composable ColumnScope.() -> Unit) {
@@ -216,10 +219,25 @@ fun CategoryCard(category: ParentCategory, child: ChildHome, api: ParentApi, act
     val colors = LocalChildColors.current
     val added = stringResource(R.string.parent_added)
     val closed = stringResource(R.string.parent_closed_until)
+    val renamed = stringResource(R.string.parent_renamed)
+    var editing by rememberSaveable(category.ref.id) { mutableStateOf(false) }
+    var name by rememberSaveable(category.ref.id) { mutableStateOf(category.ref.title) }
 
     Card {
+        if (editing) Row(verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(name, { name = it.take(MAX_CATEGORY_TITLE) }, singleLine = true, modifier = Modifier.weight(1f))
+            TextButton(onClick = {
+                editing = false
+                actions(renamed.format(name.trim())) { api.renameCategory(category.ref.id, name) }
+            }, enabled = name.isNotBlank()) { Text(stringResource(R.string.parent_save)) }
+            TextButton(onClick = { editing = false; name = category.ref.title }) { Text(stringResource(R.string.parent_cancel)) }
+        }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(category.ref.title, color = colors.text, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            // the name is the parent's own: a tap on it renames the category
+            Text(
+                category.ref.title, color = colors.text, fontSize = 18.sp, fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f).clickable { name = category.ref.title; editing = true }
+            )
             Text(
                 when {
                     category.closedByParent -> stringResource(R.string.parent_closed_by_parent) +

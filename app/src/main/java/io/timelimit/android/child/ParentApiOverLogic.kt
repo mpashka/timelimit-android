@@ -21,6 +21,7 @@ import io.timelimit.android.sync.actions.IncrementCategoryExtraTimeAction
 import io.timelimit.android.sync.actions.ParentAction
 import io.timelimit.android.sync.actions.SetAppRuleAction
 import io.timelimit.android.sync.actions.UpdateCategoryDisableLimitsAction
+import io.timelimit.android.sync.actions.UpdateCategoryTitleAction
 import io.timelimit.android.sync.actions.UpdateCategoryTemporarilyBlockedAction
 import io.timelimit.android.sync.actions.apply.ApplyActionParentDeviceAuthentication
 import io.timelimit.android.sync.actions.apply.ApplyActionUtil
@@ -317,7 +318,7 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
                 (category.category.temporarilyBlockedEndTime == 0L || category.category.temporarilyBlockedEndTime > now)
 
         return ParentCategory(
-            ref = CategoryRef(category.category.id, CategoryTitles.display(category.category.title)),
+            ref = CategoryRef(category.category.id, category.category.title),
             depth = depth,
             remaining = handling.remainingTime?.includingExtraTime,
             usedToday = category.usedTimes.filter { it.dayOfEpoch == todayEpoch && it.startTimeOfDay == 0 && it.endTimeOfDay == 24 * 60 - 1 }
@@ -411,6 +412,14 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
     override suspend fun deny(requestId: String): Undo? {
         dispatch(listOf(AnswerChildRequestAction(requestId, ChildRequestAnswer.KIND_DENY, 0, "")))
         return null
+    }
+
+    override suspend fun renameCategory(categoryId: String, title: String): Undo? {
+        val old = childData()?.categoryById?.get(categoryId)?.category?.title ?: return null
+        val wanted = title.trim().takeIf { it.isNotEmpty() && it != old } ?: return null
+
+        dispatch(listOf(UpdateCategoryTitleAction(categoryId, wanted)))
+        return undoWith(listOf(UpdateCategoryTitleAction(categoryId, old)))
     }
 
     override suspend fun moveApp(packageName: String, categoryId: String): Undo? {

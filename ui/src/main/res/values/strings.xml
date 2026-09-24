@@ -96,6 +96,7 @@
     <string name="child_widget_offer_by_hand">Этот рабочий стол не умеет ставить виджет по просьбе приложения. Поставь руками: долгое нажатие на пустое место рабочего стола → «Виджеты» → TimeLimit.</string>
     <string name="child_widget_offer_placed">Виджет уже стоит на рабочем столе.</string>
 
+    <string name="parent_renamed">Категория теперь «%s»</string>
     <string name="parent_undo">Отменить</string>
     <string name="parent_undone">Отменено</string>
     <string name="parent_action_failed">Не получилось: %s</string>

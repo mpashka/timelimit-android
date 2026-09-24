@@ -40,6 +40,7 @@ import okio.GzipSink
 import okio.Sink
 import okio.buffer
 import java.io.OutputStreamWriter
+import java.io.Writer
 import java.security.KeyPairGenerator
 import java.security.KeyStore
 import java.security.KeyStore.PrivateKeyEntry
@@ -81,17 +82,15 @@ class HttpServerApi(private val endpointWithoutSlashAtEnd: String): ServerApi {
 
         private val JSON = "application/json; charset=utf-8".toMediaTypeOrNull()
 
+        /** The request body as the server reads it: gzip over UTF-8, whatever the platform's default charset. */
+        fun gzipUtf8Writer(sink: Sink): Writer = OutputStreamWriter(GzipSink(sink).buffer().outputStream(), Charsets.UTF_8)
+
         private suspend fun createJsonRequestBody(
             serialize: (writer: JsonWriter) -> Unit,
             measureContentLength: Boolean
         ): RequestBody {
             fun write(sink: Sink) {
-                val writer = JsonWriter(
-                    OutputStreamWriter(
-                        GzipSink(sink)
-                            .buffer().outputStream()
-                    )
-                )
+                val writer = JsonWriter(gzipUtf8Writer(sink))
 
                 serialize(writer)
 

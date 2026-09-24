@@ -169,12 +169,12 @@ class ChildApiOverLogic(private val logic: AppLogic) : ChildApi {
         val parentName = { id: String -> users.find { it.id == id }?.name ?: "" }
         val request = ChildRequestStates.forApp(user.user.childRequests, packageName, time.timeInMillis, parentName)
         val grant = if (logic.database.config().getParentCodeSecretSync() == null) null
-        else GrantChoice(blocking?.createdWithCategoryRelatedData?.category?.title?.let(CategoryTitles::display), dayEnd(user, time.timeInMillis))
+        else GrantChoice(blocking?.createdWithCategoryRelatedData?.category?.title, dayEnd(user, time.timeInMillis))
 
         return when {
             blocking != null -> AppAccess.Closed(
                 app = app,
-                categoryTitle = CategoryTitles.display(blocking.createdWithCategoryRelatedData.category.title),
+                categoryTitle = blocking.createdWithCategoryRelatedData.category.title,
                 reason = closeReason(blocking, time.timeInMillis),
                 opensAt = opensAt(blocking, time.timeInMillis, user.timeZone),
                 remainingToday = blocking.remainingTime?.includingExtraTime?.takeIf { it > 0 },
@@ -192,7 +192,7 @@ class ChildApiOverLogic(private val logic: AppLogic) : ChildApi {
 
                 AppAccess.Closed(
                     app = app,
-                    categoryTitle = category?.createdWithCategoryRelatedData?.category?.title?.let(CategoryTitles::display),
+                    categoryTitle = category?.createdWithCategoryRelatedData?.category?.title,
                     reason = when (verdict) {
                         is AppRuleCheck.Verdict.NotToday -> CloseReason.AppOnlyOnDays(verdict.days)
                         AppRuleCheck.Verdict.LimitOver -> CloseReason.AppLimitOver
@@ -314,7 +314,7 @@ class ChildApiOverLogic(private val logic: AppLogic) : ChildApi {
             val handling = cache.get(category.category.id)
 
             CategoryToday(
-                title = CategoryTitles.display(category.category.title),
+                title = category.category.title,
                 remaining = handling.remainingTime?.includingExtraTime,
                 closedNow = handling.shouldBlockActivities,
                 apps = appsByCategory[category.category.id].orEmpty().distinct()

@@ -29,6 +29,9 @@ interface ParentApi {
     // @tag:child-request
     suspend fun deny(requestId: String): Undo?
 
+    /** The name is the parent's own, stored as typed (any Unicode). */
+    suspend fun renameCategory(categoryId: String, title: String): Undo?
+
     // @tag:new-app
     suspend fun moveApp(packageName: String, categoryId: String): Undo?
 
