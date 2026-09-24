@@ -23,10 +23,10 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.Observer
+import androidx.lifecycle.map
+import androidx.lifecycle.switchMap
 import io.timelimit.android.BuildConfig
 import io.timelimit.android.R
-import io.timelimit.android.async.Threads
-import io.timelimit.android.data.Database
 import io.timelimit.android.data.model.ExperimentalFlags
 import io.timelimit.android.databinding.DiagnoseExperimentalFlagFragmentBinding
 import io.timelimit.android.databinding.DiagnoseExperimentalFlagItemBinding
@@ -34,6 +34,7 @@ import io.timelimit.android.integration.platform.android.foregroundapp.LollipopF
 import io.timelimit.android.livedata.liveDataFromNonNullValue
 import io.timelimit.android.livedata.liveDataFromNullableValue
 import io.timelimit.android.logic.DefaultAppLogic
+import io.timelimit.android.sync.actions.UpdateDeviceExperimentalFlags
 import io.timelimit.android.ui.homescreen.ConfigureHomescreenDelayDialogFragment
 import io.timelimit.android.ui.main.ActivityViewModelHolder
 import io.timelimit.android.ui.main.AuthenticationFab
@@ -42,7 +43,8 @@ import io.timelimit.android.ui.main.FragmentWithCustomTitle
 class DiagnoseExperimentalFlagFragment : Fragment(), FragmentWithCustomTitle {
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         val activity: ActivityViewModelHolder = activity as ActivityViewModelHolder
-        val database = DefaultAppLogic.with(requireContext()).database
+        val logic = DefaultAppLogic.with(requireContext())
+        val database = logic.database
         val auth = activity.getActivityViewModel()
 
         val binding = DiagnoseExperimentalFlagFragmentBinding.inflate(inflater, container, false)
@@ -70,7 +72,8 @@ class DiagnoseExperimentalFlagFragment : Fragment(), FragmentWithCustomTitle {
             }
         }
 
-        database.config().experimentalFlags.observe(viewLifecycleOwner, Observer { setFlags ->
+        // @tag:device-flags
+        database.config().experimentalFlags.switchMap { setFlags -> logic.deviceId.map { setFlags to it } }.observe(viewLifecycleOwner, Observer { (setFlags, ownDeviceId) ->
             flags.forEachIndexed { index, flag ->
                 val checkbox = checkboxes[index]
                 val isFlagSet = (setFlags and flag.enableFlags) == flag.enableFlags
@@ -82,19 +85,12 @@ class DiagnoseExperimentalFlagFragment : Fragment(), FragmentWithCustomTitle {
                 checkbox.checkbox.isChecked = isFlagSet
                 checkbox.checkbox.setOnCheckedChangeListener { _, didCheck ->
                     if (didCheck != isFlagSet) {
-                        if (auth.requestAuthenticationOrReturnTrue()) {
-                            Threads.database.execute {
-                                if (didCheck) {
-                                    database.config().setExperimentalFlag(flag.enableFlags, true)
+                        val mask = if (didCheck) flag.enableFlags else flag.disableFlags
+                        val dispatched = ownDeviceId != null && auth.tryDispatchParentAction(
+                            UpdateDeviceExperimentalFlags(deviceId = ownDeviceId, mask = mask, value = if (didCheck) mask else 0)
+                        )
 
-                                    flag.postEnableHook?.invoke(database)
-                                } else {
-                                    database.config().setExperimentalFlag(flag.disableFlags, false)
-                                }
-                            }
-                        } else {
-                            checkbox.checkbox.isChecked = isFlagSet
-                        }
+                        if (!dispatched) checkbox.checkbox.isChecked = isFlagSet
                     }
                 }
             }
@@ -111,7 +107,6 @@ data class DiagnoseExperimentalFlagItem(
         val enableFlags: Long,
         val disableFlags: Long,
         val enable: (flags: Long) -> Boolean,
-        val postEnableHook: ((Database) -> Unit)? = null,
         val configHook: ((FragmentManager) -> Unit)? = null
 ) {
     companion object {
@@ -138,8 +133,7 @@ data class DiagnoseExperimentalFlagItem(
                         label = R.string.diagnose_exf_chs,
                         enableFlags = ExperimentalFlags.CUSTOM_HOME_SCREEN,
                         disableFlags = ExperimentalFlags.CUSTOM_HOME_SCREEN or ExperimentalFlags.CUSTOM_HOMESCREEN_DELAY,
-                        enable = { true },
-                        postEnableHook = { database -> database.config().setDefaultHomescreenSync(null) }
+                        enable = { true }
                 ),
                 DiagnoseExperimentalFlagItem(
                         label = R.string.diagnose_exf_chd,

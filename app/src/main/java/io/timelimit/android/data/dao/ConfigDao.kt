@@ -25,6 +25,7 @@ import io.timelimit.android.data.model.ConfigurationItem
 import io.timelimit.android.data.model.ConfigurationItemType
 import io.timelimit.android.data.model.ConfigurationItemTypeConverter
 import io.timelimit.android.data.model.ConfigurationItemTypeUtil
+import io.timelimit.android.data.model.ExperimentalFlags
 import io.timelimit.android.extensions.base64
 import io.timelimit.android.extensions.parseBase64
 import io.timelimit.android.extensions.toJsonReader
@@ -288,14 +289,15 @@ abstract class ConfigDao {
 
     fun isExperimentalFlagsSetSync(flags: Long) = (getExperimentalFlagsSync() and flags) == flags
 
-    fun setExperimentalFlag(flags: Long, enable: Boolean) {
-        updateValueSync(
-                ConfigurationItemType.ExperimentalFlags,
-                if (enable)
-                    (getExperimentalFlagsSync() or flags).toString(16)
-                else
-                    (getExperimentalFlagsSync() and (flags.inv())).toString(16)
-        )
+    // @tag:device-flags
+    fun setExperimentalFlagsSync(flags: Long) {
+        val old = getExperimentalFlagsSync()
+        if (flags == old) return
+
+        updateValueSync(ConfigurationItemType.ExperimentalFlags, flags.toString(16))
+
+        val launcher = ExperimentalFlags.CUSTOM_HOME_SCREEN
+        if (flags and launcher != 0L && old and launcher == 0L) setDefaultHomescreenSync(null)
     }
 
     fun getDefaultHomescreenSync(): ComponentName? = getValueOfKeySync(ConfigurationItemType.DefaultHomescreen)?.let {

@@ -186,6 +186,11 @@ object ApplyServerDataStatus {
                             newDevice ->
                             val oldDeviceEntry = oldDeviceList.find { it.id == newDevice.deviceId }
 
+                            // @tag:device-flags
+                            if (newDevice.deviceId == thisDeviceId) {
+                                database.config().setExperimentalFlagsSync(newDevice.experimentalFlags)
+                            }
+
                             if (oldDeviceEntry == null) {
                                 // create new entry
 

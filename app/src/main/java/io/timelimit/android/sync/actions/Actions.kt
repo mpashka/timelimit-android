@@ -1741,6 +1741,31 @@ data class UpdateEnableActivityLevelBlocking(val deviceId: String, val enable: B
     }
 }
 
+// @tag:device-flags
+data class UpdateDeviceExperimentalFlags(val deviceId: String, val mask: Long, val value: Long): ParentAction() {
+    companion object {
+        private const val TYPE_VALUE = "UPDATE_DEVICE_EXPERIMENTAL_FLAGS"
+        private const val DEVICE_ID = "deviceId"
+        private const val MASK = "mask"
+        private const val VALUE = "value"
+    }
+
+    init {
+        IdGenerator.assertIdValid(deviceId)
+    }
+
+    override fun serialize(writer: JsonWriter) {
+        writer.beginObject()
+
+        writer.name(TYPE).value(TYPE_VALUE)
+        writer.name(DEVICE_ID).value(deviceId)
+        writer.name(MASK).value(mask)
+        writer.name(VALUE).value(value and mask)
+
+        writer.endObject()
+    }
+}
+
 data class UpdateCategoryBlockedTimesAction(val categoryId: String, val blockedTimes: ImmutableBitmask): ParentAction() {
     companion object {
         const val TYPE_VALUE = "UPDATE_CATEGORY_BLOCKED_TIMES"

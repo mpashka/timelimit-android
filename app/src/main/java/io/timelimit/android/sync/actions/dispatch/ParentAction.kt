@@ -691,6 +691,16 @@ object LocalDatabaseParentActionDispatcher {
                             )
                     )
                 }
+                // @tag:device-flags
+                is UpdateDeviceExperimentalFlags -> {
+                    database.device().getDeviceByIdSync(action.deviceId) ?: throw IllegalArgumentException("device not found")
+
+                    val config = database.config()
+                    val old = config.getExperimentalFlagsSync()
+                    val isOwnDevice = action.deviceId == config.getOwnDeviceIdSync()
+
+                    config.setExperimentalFlagsSync(if (isOwnDevice) (old and action.mask.inv()) or (action.value and action.mask) else old)
+                }
                 is UpdateCategoryTimeWarningsAction -> {
                     val categoryEntry = database.category().getCategoryByIdSync(action.categoryId)
                             ?: throw IllegalArgumentException("category not found")

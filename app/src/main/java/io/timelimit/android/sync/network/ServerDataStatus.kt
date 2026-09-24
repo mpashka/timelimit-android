@@ -362,7 +362,8 @@ data class ServerDeviceData(
         val manipulationFlags: Long,
         val publicKey: ByteArray?,
         val platformType: String?,
-        val platformLevel: Int?
+        val platformLevel: Int?,
+        val experimentalFlags: Long // @tag:device-flags
 ) {
     companion object {
         private const val DEVICE_ID = "deviceId"
@@ -398,6 +399,7 @@ data class ServerDeviceData(
         private const val MANIPULATION_FLAGS = "mFlags"
         private const val PUBLIC_KEY = "pk"
         private const val PLATFORM_TYPE = "pType"
+        private const val EXPERIMENTAL_FLAGS = "exFlags"
         private const val PLATFORM_LEVEL = "pLevel"
 
         fun parse(reader: JsonReader): ServerDeviceData {
@@ -435,6 +437,7 @@ data class ServerDeviceData(
             var publicKey: ByteArray? = null
             var platformType: String? = null
             var platformLevel: Int? = null
+            var experimentalFlags = 0L
 
             reader.beginObject()
             while (reader.hasNext()) {
@@ -473,6 +476,7 @@ data class ServerDeviceData(
                     PUBLIC_KEY -> publicKey = reader.nextString().parseBase64()
                     PLATFORM_TYPE -> platformType = reader.nextString()
                     PLATFORM_LEVEL -> platformLevel = reader.nextInt()
+                    EXPERIMENTAL_FLAGS -> experimentalFlags = reader.nextLong()
                     else -> reader.skipValue()
                 }
             }
@@ -512,7 +516,8 @@ data class ServerDeviceData(
                     manipulationFlags = manipulationFlags,
                     publicKey = publicKey,
                     platformType = platformType,
-                    platformLevel = platformLevel
+                    platformLevel = platformLevel,
+                    experimentalFlags = experimentalFlags
             )
         }
 
