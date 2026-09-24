@@ -25,6 +25,13 @@ import io.timelimit.android.sync.actions.UpdateCategoryTemporarilyBlockedAction
 import io.timelimit.android.sync.actions.apply.ApplyActionParentDeviceAuthentication
 import io.timelimit.android.sync.actions.apply.ApplyActionUtil
 import io.timelimit.android.sync.network.api.AppUsageRow
+import io.timelimit.android.sync.network.api.BadRequestHttpError
+import io.timelimit.android.sync.network.api.ConflictHttpError
+import io.timelimit.android.sync.network.api.ForbiddenHttpError
+import io.timelimit.android.sync.network.api.GoneHttpError
+import io.timelimit.android.sync.network.api.NotFoundHttpError
+import io.timelimit.android.sync.network.api.TooManyRequestsHttpError
+import io.timelimit.android.sync.network.api.UnauthorizedHttpError
 import io.timelimit.api.AnsweredLine
 import io.timelimit.android.sync.actions.RemoveCategoryAppsAction
 import io.timelimit.android.sync.actions.SetCategoryExtraTimeAction
@@ -160,7 +167,7 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
         val today = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
         val todayEpoch = today.toEpochDay().toInt()
 
-        if (device != null && (usage == null || now - usage.first > USAGE_REFRESH)) {
+        if (device != null && cannotAct == null && (usage == null || now - usage.first > USAGE_REFRESH)) {
             loadUsage(child.id, device.currentUserId, todayEpoch)
         }
 
@@ -192,8 +199,8 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
         val appUsage = when {
             rows != null -> {
                 val categoryOf = { packageName: String ->
-                    data.categoryApps.find { it.appSpecifier.packageName == packageName }?.categoryId
-                        ?.let { id -> categoryRefs.find { it.id == id }?.title }
+                    (data.categoryApps.find { it.appSpecifier.packageName == packageName }?.categoryId ?: child.categoryForNotAssignedApps)
+                        .let { id -> categoryRefs.find { it.id == id }?.title }
                 }
                 fun lines(filter: (AppUsageRow) -> Boolean) = rows.filter(filter).groupBy { it.packageName }
                     .map { (packageName, items) ->
@@ -210,8 +217,23 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
                     }
                 )
             }
+            cannotAct != null -> AppUsage.NeedsSignIn
             usage == null -> AppUsage.Loading
-            else -> AppUsage.Failed(usage.second.exceptionOrNull()?.message ?: "")
+            else -> usage.second.exceptionOrNull().let { ex ->
+                AppUsage.Failed(
+                    httpCode = when (ex) {
+                        is BadRequestHttpError -> 400
+                        is UnauthorizedHttpError -> 401
+                        is ForbiddenHttpError -> 403
+                        is NotFoundHttpError -> 404
+                        is ConflictHttpError -> 409
+                        is GoneHttpError -> 410
+                        is TooManyRequestsHttpError -> 429
+                        else -> null
+                    },
+                    detail = listOfNotNull(ex?.javaClass?.simpleName, ex?.message?.takeIf { it.isNotBlank() }).joinToString(": ").ifEmpty { "?" }
+                )
+            }
         }
         val usageToday = (appUsage as? AppUsage.Known)?.today.orEmpty()
 
@@ -295,7 +317,7 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
                 (category.category.temporarilyBlockedEndTime == 0L || category.category.temporarilyBlockedEndTime > now)
 
         return ParentCategory(
-            ref = CategoryRef(category.category.id, category.category.title),
+            ref = CategoryRef(category.category.id, CategoryTitles.display(category.category.title)),
             depth = depth,
             remaining = handling.remainingTime?.includingExtraTime,
             usedToday = category.usedTimes.filter { it.dayOfEpoch == todayEpoch && it.startTimeOfDay == 0 && it.endTimeOfDay == 24 * 60 - 1 }

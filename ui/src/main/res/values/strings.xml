@@ -100,7 +100,11 @@
     <string name="parent_undone">Отменено</string>
     <string name="parent_action_failed">Не получилось: %s</string>
     <string name="parent_usage_loading">Загружаем время по приложениям…</string>
-    <string name="parent_usage_failed">Сервер не отдал время по приложениям: %s</string>
+    <string name="parent_usage_needs_sign_in">Время по приложениям — после входа родителя на этом устройстве.</string>
+    <string name="parent_usage_failed_auth">Сервер не принял этот телефон (HTTP %d) — войдите заново.</string>
+    <string name="parent_usage_failed_old_server">Сервер не умеет время по приложениям (HTTP 404) — обновите сервер.</string>
+    <string name="parent_usage_failed_network">Нет ответа сервера: %s</string>
+    <string name="parent_usage_failed_http">Сервер ответил HTTP %1$d: %2$s</string>
     <string name="parent_cannot_not_connected">Телефон не подключён к семье — действия недоступны.</string>
     <string name="parent_cannot_not_parent">На этом телефоне сейчас не родитель — войдите, чтобы отвечать и настраивать.</string>
     <string name="parent_cannot_not_kept">Телефон не хранит вход родителя — войдите, галка «не спрашивать на этом устройстве» уже будет стоять.</string>

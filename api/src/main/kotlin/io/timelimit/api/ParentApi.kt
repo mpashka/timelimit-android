@@ -94,7 +94,10 @@ data class ChildHome(
 sealed interface AppUsage {
     data class Known(val today: List<AppTime>, val week: List<AppTime>, val weekByDay: Map<String, List<Long>>) : AppUsage
     data object Loading : AppUsage
-    data class Failed(val message: String) : AppUsage
+    /** The phone may not ask: no kept parent sign-in. */
+    data object NeedsSignIn : AppUsage
+    /** [httpCode] null — no answer at all; [detail] — the error as it came, never empty. */
+    data class Failed(val httpCode: Int?, val detail: String) : AppUsage
 }
 
 data class AppTime(val app: App, val ms: Long, val categoryTitle: String?, val rule: AppRuleLine?)

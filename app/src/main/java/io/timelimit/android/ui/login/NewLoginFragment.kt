@@ -76,6 +76,7 @@ class NewLoginFragment: DialogFragment() {
     }
 
     private val model: LoginDialogFragmentModel by viewModels()
+    private var keepSignedInApplied = false
 
     private val inputMethodManager: InputMethodManager by lazy {
         requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
@@ -143,9 +144,9 @@ class NewLoginFragment: DialogFragment() {
         adapter.listener = object: LoginUserAdapterListener {
             override fun onUserClicked(user: User) {
                 // reset parent password view
-                val keepSignedIn = arguments?.getBoolean(KEEP_SIGNED_IN, false) ?: false
-                binding.enterPassword.checkAssignMyself.isChecked = keepSignedIn
-                binding.enterPassword.checkDontAskAgain.isChecked = keepSignedIn
+                binding.enterPassword.checkAssignMyself.isChecked = false
+                binding.enterPassword.checkDontAskAgain.isChecked = false
+                keepSignedInApplied = false
                 binding.enterPassword.password.setText("")
 
                 // go to the next step
@@ -269,6 +270,17 @@ class NewLoginFragment: DialogFragment() {
 
                         bindCanNotKeepLoggedIn()
                         binding.enterPassword.checkAssignMyself.setOnCheckedChangeListener { _, _ -> bindCanNotKeepLoggedIn() }
+                    }
+
+                    // the parent screen of the new interface asks for a sign-in that is kept on this device;
+                    // the password step can be reached without a tap on a user, so the ticks are set here
+                    // @tag:new-ui
+                    if (!keepSignedInApplied && arguments?.getBoolean(KEEP_SIGNED_IN, false) == true && status.isConnectedMode) {
+                        keepSignedInApplied = true
+                        if (binding.enterPassword.checkAssignMyself.isEnabled) binding.enterPassword.checkAssignMyself.isChecked = true
+                        binding.enterPassword.canNotKeepLoggedIn = false
+                        binding.enterPassword.executePendingBindings()
+                        binding.enterPassword.checkDontAskAgain.isChecked = true
                     }
 
                     if (status.wasPasswordWrong) {

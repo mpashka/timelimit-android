@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -36,7 +37,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.TabletAndroid
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -70,7 +71,7 @@ enum class ParentTab(val title: Int, val icon: ImageVector) {
     Apps(R.string.parent_tab_apps, Icons.Default.List),
     Modes(R.string.parent_tab_modes, Icons.Default.DateRange),
     Sites(R.string.parent_tab_sites, Icons.Default.Lock),
-    Tablets(R.string.parent_tab_tablets, Icons.Default.Phone),
+    Tablets(R.string.parent_tab_tablets, Icons.Default.TabletAndroid),
 }
 
 /** Performs a command and says its outcome with «Отменить» — reversible actions are not confirmed, they are undone. */
@@ -124,8 +125,9 @@ fun ParentScreen(api: ParentApi, startOnRequests: Boolean, openOldInterface: () 
             },
             backgroundColor = colors.ground,
         ) { padding ->
-            Column(
-                Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+            // one column of phone width in the middle of a wide screen, so a name and its time stay together
+            Box(Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()), contentAlignment = Alignment.TopCenter) { Column(
+                Modifier.widthIn(max = 720.dp).fillMaxWidth().padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 home?.cannotAct?.let { CannotActCard(it, signIn) }
@@ -144,7 +146,7 @@ fun ParentScreen(api: ParentApi, startOnRequests: Boolean, openOldInterface: () 
                     tab == ParentTab.Modes -> ModesScreen(child, api, actions)
                     tab == ParentTab.Sites -> SitesScreen(child, api, actions)
                 }
-            }
+            } }
         }
     }
 }

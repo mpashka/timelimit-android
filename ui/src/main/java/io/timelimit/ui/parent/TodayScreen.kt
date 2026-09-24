@@ -23,6 +23,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -50,11 +51,28 @@ fun Card(content: @Composable ColumnScope.() -> Unit) {
     )
 }
 
+/** A one-off action, not a choice: all chips look the same and none takes the focus ring. */
 @Composable
 fun Chip(text: String, onClick: () -> Unit) {
-    OutlinedButton(onClick = onClick, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp)) {
+    val colors = LocalChildColors.current
+
+    OutlinedButton(
+        onClick = onClick,
+        border = androidx.compose.foundation.BorderStroke(1.dp, colors.secondary.copy(alpha = 0.4f)),
+        colors = androidx.compose.material.ButtonDefaults.outlinedButtonColors(backgroundColor = colors.surface, contentColor = colors.action),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp),
+        modifier = Modifier.focusProperties { canFocus = false }
+    ) {
         Text(text, fontSize = 14.sp)
     }
+}
+
+@Composable
+fun usageFailure(usage: AppUsage.Failed): String = when (usage.httpCode) {
+    401, 403 -> stringResource(R.string.parent_usage_failed_auth, usage.httpCode!!)
+    404 -> stringResource(R.string.parent_usage_failed_old_server)
+    null -> stringResource(R.string.parent_usage_failed_network, usage.detail)
+    else -> stringResource(R.string.parent_usage_failed_http, usage.httpCode!!, usage.detail)
 }
 
 @Composable
@@ -131,7 +149,8 @@ private fun AppsSection(child: ChildHome, api: ParentApi, actions: ParentActions
     when (val usage = child.usage) {
         is AppUsage.Known -> (if (week) usage.week else usage.today).take(10).forEach { AppRow(it) { onApp(it.app.packageName) } }
         AppUsage.Loading -> Text(stringResource(R.string.parent_usage_loading), color = colors.secondary, fontSize = 14.sp)
-        is AppUsage.Failed -> Text(stringResource(R.string.parent_usage_failed, usage.message), color = colors.secondary, fontSize = 14.sp)
+        AppUsage.NeedsSignIn -> Text(stringResource(R.string.parent_usage_needs_sign_in), color = colors.secondary, fontSize = 14.sp)
+        is AppUsage.Failed -> Text(usageFailure(usage), color = colors.secondary, fontSize = 14.sp)
     }
 }
 

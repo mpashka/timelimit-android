@@ -47,7 +47,8 @@ fun AppsScreen(child: ChildHome, api: ParentApi, actions: ParentActions, onApp: 
             }
         }
         AppUsage.Loading -> Text(stringResource(R.string.parent_usage_loading), color = colors.secondary)
-        is AppUsage.Failed -> Text(stringResource(R.string.parent_usage_failed, usage.message), color = colors.secondary)
+        AppUsage.NeedsSignIn -> Text(stringResource(R.string.parent_usage_needs_sign_in), color = colors.secondary)
+        is AppUsage.Failed -> Text(usageFailure(usage), color = colors.secondary)
     }
 }
 
