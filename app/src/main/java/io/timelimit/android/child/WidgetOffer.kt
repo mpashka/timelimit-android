@@ -2,12 +2,18 @@ package io.timelimit.android.child
 
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.Button
 import androidx.compose.material.Card
 import androidx.compose.material.MaterialTheme
+import androidx.compose.material.OutlinedButton
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -61,6 +67,22 @@ fun WidgetOffer() {
                 onClick = { requested = manager.requestPinAppWidget(provider, null, null) || requested },
                 modifier = Modifier.padding(top = 8.dp)
             ) { Text(stringResource(UiR.string.child_widget_offer_button)) }
+            if (requested && !placed && isXiaomi) {
+                Text(stringResource(UiR.string.child_widget_offer_xiaomi), Modifier.padding(top = 8.dp))
+                OutlinedButton(onClick = { openMiuiPermissions(context) }) {
+                    Text(stringResource(UiR.string.child_widget_offer_xiaomi_button))
+                }
+            }
         }
     }
+}
+
+private val isXiaomi = Build.MANUFACTURER.equals("Xiaomi", ignoreCase = true)
+
+// MIUI keeps "home screen shortcuts" (MIUIOP 10017) outside Android's permissions; a denied op drops
+// requestPinAppWidget silently, and only MIUI's own permission editor can switch it back on.
+private fun openMiuiPermissions(context: Context) {
+    val miui = Intent("miui.intent.action.APP_PERM_EDITOR").putExtra("extra_pkgname", context.packageName)
+    val plain = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))
+    context.startActivity(if (miui.resolveActivity(context.packageManager) != null) miui else plain)
 }
