@@ -3,6 +3,10 @@ package io.timelimit.android.logic
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.util.Base64
 import android.util.Log
 import io.timelimit.android.BuildConfig
 import io.timelimit.android.async.Threads
@@ -13,20 +17,22 @@ import io.timelimit.android.data.model.derived.DeviceAndUserRelatedData
 import io.timelimit.android.logic.blockingreason.AppBaseHandling
 import io.timelimit.android.sync.actions.AppLogicAction
 import io.timelimit.android.sync.actions.ForgetNewAppAction
+import io.timelimit.android.sync.actions.ReportAppIconsAction
 import io.timelimit.android.sync.actions.ReportNewAppAction
 import io.timelimit.android.sync.actions.SetAppUsageAction
 import io.timelimit.android.sync.actions.SetForegroundAppAction
 import io.timelimit.android.sync.actions.apply.ApplyActionUtil
 import kotlinx.coroutines.delay
+import java.io.ByteArrayOutputStream
 import java.time.Instant
 import java.time.LocalDate
 
 /**
  * Tells the server once a minute what the child's tablet does: time per app today (SET_APP_USAGE),
- * the app in the foreground (SET_FOREGROUND_APP) and apps closed until a parent decides (REPORT_NEW_APP),
- * docs/specification/protocol-new-ui.md, sections 4–6.
+ * the app in the foreground (SET_FOREGROUND_APP), apps closed until a parent decides (REPORT_NEW_APP)
+ * and, once per app, its icon and name (REPORT_APP_ICONS), docs/specification/protocol-new-ui.md, sections 4–6, 9.
  */
-// @tag:app-usage @tag:new-app @tag:device-state
+// @tag:app-usage @tag:new-app @tag:device-state @tag:app-icon
 class AppActivityReportLogic(private val appLogic: AppLogic) {
     companion object {
         private const val LOG_TAG = "AppActivityReport"
@@ -35,6 +41,9 @@ class AppActivityReportLogic(private val appLogic: AppLogic) {
         private const val MIN_SERVER_API_LEVEL = 12
         private const val PREFS = "app_activity_report"
         private const val KEY_NEW_APPS = "new_apps"
+        private const val KEY_ICONS_SENT = "icons_sent"
+        private const val ICON_SIZE = 96
+        private const val MAX_ICON_BASE64 = 65536
 
         fun section(category: Int): String = when (category) {
             ApplicationInfo.CATEGORY_GAME -> "game"
@@ -99,6 +108,7 @@ class AppActivityReportLogic(private val appLogic: AppLogic) {
         reportUsage(user.timeZone.toZoneId())
         reportForegroundApp()
         if (ticks++ % NEW_APPS_EVERY_TICKS == 0) reportNewApps(data)
+        if (apiLevel >= ReportAppIconsAction.MIN_SERVER_API_LEVEL) reportAppIcons()
     }
 
     private suspend fun reportUsage(zone: java.time.ZoneId) {
@@ -155,10 +165,7 @@ class AppActivityReportLogic(private val appLogic: AppLogic) {
         val user = data.userRelatedData ?: return
         val pm = context.packageManager
 
-        val launchable = Threads.backgroundOSInteraction.executeAndWait {
-            pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0)
-                .map { it.activityInfo.packageName }.toSet()
-        }
+        val launchable = launchablePackages()
         val newApps = launchable.filter { packageName ->
             packageName != context.packageName && AppBaseHandling.calculate(
                 foregroundAppPackageName = packageName,
@@ -186,5 +193,47 @@ class AppActivityReportLogic(private val appLogic: AppLogic) {
         (reported - launchable).forEach { dispatch(ForgetNewAppAction(it)) }
 
         prefs.edit().putStringSet(KEY_NEW_APPS, newApps).apply()
+    }
+
+    private suspend fun launchablePackages(): Set<String> = Threads.backgroundOSInteraction.executeAndWait {
+        appLogic.context.packageManager.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0)
+            .map { it.activityInfo.packageName }.toSet()
+    }
+
+    // ponytail: "sent" lives on the tablet, so a server that loses its icons does not get them again;
+    // add a list of known icons to the sync if a server is ever replaced without its database
+    private suspend fun reportAppIcons() {
+        val context = appLogic.context
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val sent = prefs.getStringSet(KEY_ICONS_SENT, emptySet())!!.toSet()
+        val launchable = launchablePackages() - context.packageName
+        val batch = (launchable - sent).take(ReportAppIconsAction.MAX_ITEMS)
+
+        if (batch.isNotEmpty()) {
+            val items = Threads.backgroundOSInteraction.executeAndWait { batch.mapNotNull { iconItem(context.packageManager, it) } }
+
+            if (items.isNotEmpty()) dispatch(ReportAppIconsAction(items))
+        }
+
+        if (batch.isNotEmpty() || !launchable.containsAll(sent)) {
+            prefs.edit().putStringSet(KEY_ICONS_SENT, sent.intersect(launchable) + batch).apply()
+        }
+    }
+
+    private fun iconItem(pm: PackageManager, packageName: String): ReportAppIconsAction.Item? = try {
+        val applicationInfo = pm.getApplicationInfo(packageName, 0)
+        val bitmap = Bitmap.createBitmap(ICON_SIZE, ICON_SIZE, Bitmap.Config.ARGB_8888)
+
+        pm.getApplicationIcon(applicationInfo).apply { setBounds(0, 0, ICON_SIZE, ICON_SIZE) }.draw(Canvas(bitmap))
+
+        val png = ByteArrayOutputStream().also { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }.toByteArray()
+        val base64 = Base64.encodeToString(png, Base64.NO_WRAP)
+
+        bitmap.recycle()
+
+        if (base64.length > MAX_ICON_BASE64) null
+        else ReportAppIconsAction.Item(packageName, pm.getApplicationLabel(applicationInfo).toString(), base64)
+    } catch (ex: PackageManager.NameNotFoundException) {
+        null
     }
 }

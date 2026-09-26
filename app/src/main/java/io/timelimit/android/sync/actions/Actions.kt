@@ -775,6 +775,37 @@ data class ReportNewAppAction(val packageName: String, val title: String, val se
     }
 }
 
+// @tag:app-icon
+data class ReportAppIconsAction(val items: List<Item>): AppLogicAction() {
+    companion object {
+        const val TYPE_VALUE = "REPORT_APP_ICONS"
+        const val MAX_ITEMS = 5
+        const val MIN_SERVER_API_LEVEL = 14
+    }
+
+    /** [pngBase64] — a 96x96 PNG, base64 without line breaks. */
+    data class Item(val packageName: String, val title: String, val pngBase64: String)
+
+    init {
+        if (items.isEmpty() || items.size > MAX_ITEMS) throw IllegalArgumentException()
+    }
+
+    override fun serialize(writer: JsonWriter) {
+        writer.beginObject()
+        writer.name(TYPE).value(TYPE_VALUE)
+        writer.name("items").beginArray()
+        items.forEach {
+            writer.beginObject()
+            writer.name("packageName").value(it.packageName)
+            writer.name("title").value(it.title.take(100))
+            writer.name("icon").value(it.pngBase64)
+            writer.endObject()
+        }
+        writer.endArray()
+        writer.endObject()
+    }
+}
+
 // @tag:new-app
 data class ForgetNewAppAction(val packageName: String): AppLogicAction() {
     override fun serialize(writer: JsonWriter) {
