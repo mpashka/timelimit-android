@@ -8,6 +8,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.util.Base64
 import android.util.Log
+import androidx.core.content.pm.PackageInfoCompat
 import io.timelimit.android.BuildConfig
 import io.timelimit.android.async.Threads
 import io.timelimit.android.coroutines.executeAndWait
@@ -30,7 +31,7 @@ import java.time.LocalDate
 /**
  * Tells the server once a minute what the child's tablet does: time per app today (SET_APP_USAGE),
  * the app in the foreground (SET_FOREGROUND_APP), apps closed until a parent decides (REPORT_NEW_APP)
- * and, once per app, its icon and name (REPORT_APP_ICONS), docs/specification/protocol-new-ui.md, sections 4–6, 9.
+ * and, once per app version, its icon and name (REPORT_APP_ICONS), docs/specification/protocol-new-ui.md, sections 4–6, 9.
  */
 // @tag:app-usage @tag:new-app @tag:device-state @tag:app-icon
 class AppActivityReportLogic(private val appLogic: AppLogic) {
@@ -57,6 +58,16 @@ class AppActivityReportLogic(private val appLogic: AppLogic) {
             8 -> "accessibility" // ApplicationInfo.CATEGORY_ACCESSIBILITY, API 31
             else -> ""
         }
+
+        /**
+         * Launchable apps whose current version has no icon sent yet; [sent] holds "packageName:versionCode",
+         * a bare package name left by an older build never matches, so such an app is sent once more.
+         */
+        // @tag:app-icon
+        fun iconsToSend(current: Map<String, Long>, sent: Set<String>): List<String> =
+            current.filter { (packageName, versionCode) -> sentIconKey(packageName, versionCode) !in sent }.keys.toList()
+
+        fun sentIconKey(packageName: String, versionCode: Long) = "$packageName:$versionCode"
     }
 
     @Volatile
@@ -108,7 +119,7 @@ class AppActivityReportLogic(private val appLogic: AppLogic) {
         reportUsage(user.timeZone.toZoneId())
         reportForegroundApp()
         if (ticks++ % NEW_APPS_EVERY_TICKS == 0) reportNewApps(data)
-        if (apiLevel >= ReportAppIconsAction.MIN_SERVER_API_LEVEL) reportAppIcons()
+        if (apiLevel >= ReportAppIconsAction.MIN_SERVER_API_LEVEL) reportAppIcons(apiLevel >= ReportAppIconsAction.MIN_SERVER_API_LEVEL_VERSION_CODE)
     }
 
     private suspend fun reportUsage(zone: java.time.ZoneId) {
@@ -202,25 +213,38 @@ class AppActivityReportLogic(private val appLogic: AppLogic) {
 
     // ponytail: "sent" lives on the tablet, so a server that loses its icons does not get them again;
     // add a list of known icons to the sync if a server is ever replaced without its database
-    private suspend fun reportAppIcons() {
+    private suspend fun reportAppIcons(withVersionCode: Boolean) {
         val context = appLogic.context
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val sent = prefs.getStringSet(KEY_ICONS_SENT, emptySet())!!.toSet()
-        val launchable = launchablePackages() - context.packageName
-        val batch = (launchable - sent).take(ReportAppIconsAction.MAX_ITEMS)
+        val current = launchableVersions() - context.packageName
+        val batch = iconsToSend(current, sent).take(ReportAppIconsAction.MAX_ITEMS)
 
         if (batch.isNotEmpty()) {
-            val items = Threads.backgroundOSInteraction.executeAndWait { batch.mapNotNull { iconItem(context.packageManager, it) } }
+            val items = Threads.backgroundOSInteraction.executeAndWait {
+                batch.mapNotNull { iconItem(context.packageManager, it, current.getValue(it).takeIf { withVersionCode }) }
+            }
 
             if (items.isNotEmpty()) dispatch(ReportAppIconsAction(items))
         }
 
-        if (batch.isNotEmpty() || !launchable.containsAll(sent)) {
-            prefs.edit().putStringSet(KEY_ICONS_SENT, sent.intersect(launchable) + batch).apply()
+        val newSent = current.filter { (packageName, versionCode) -> packageName in batch || sentIconKey(packageName, versionCode) in sent }
+            .map { (packageName, versionCode) -> sentIconKey(packageName, versionCode) }.toSet()
+
+        if (newSent != sent) prefs.edit().putStringSet(KEY_ICONS_SENT, newSent).apply()
+    }
+
+    private suspend fun launchableVersions(): Map<String, Long> {
+        val launchable = launchablePackages()
+
+        return Threads.backgroundOSInteraction.executeAndWait {
+            appLogic.context.packageManager.getInstalledPackages(0)
+                .filter { it.packageName in launchable }
+                .associate { it.packageName to PackageInfoCompat.getLongVersionCode(it) }
         }
     }
 
-    private fun iconItem(pm: PackageManager, packageName: String): ReportAppIconsAction.Item? = try {
+    private fun iconItem(pm: PackageManager, packageName: String, versionCode: Long?): ReportAppIconsAction.Item? = try {
         val applicationInfo = pm.getApplicationInfo(packageName, 0)
         val bitmap = Bitmap.createBitmap(ICON_SIZE, ICON_SIZE, Bitmap.Config.ARGB_8888)
 
@@ -232,7 +256,7 @@ class AppActivityReportLogic(private val appLogic: AppLogic) {
         bitmap.recycle()
 
         if (base64.length > MAX_ICON_BASE64) null
-        else ReportAppIconsAction.Item(packageName, pm.getApplicationLabel(applicationInfo).toString(), base64)
+        else ReportAppIconsAction.Item(packageName, pm.getApplicationLabel(applicationInfo).toString(), base64, versionCode)
     } catch (ex: PackageManager.NameNotFoundException) {
         null
     }

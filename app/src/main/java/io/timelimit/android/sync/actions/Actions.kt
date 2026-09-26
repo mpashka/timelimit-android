@@ -781,10 +781,11 @@ data class ReportAppIconsAction(val items: List<Item>): AppLogicAction() {
         const val TYPE_VALUE = "REPORT_APP_ICONS"
         const val MAX_ITEMS = 5
         const val MIN_SERVER_API_LEVEL = 14
+        const val MIN_SERVER_API_LEVEL_VERSION_CODE = 15
     }
 
-    /** [pngBase64] — a 96x96 PNG, base64 without line breaks. */
-    data class Item(val packageName: String, val title: String, val pngBase64: String)
+    /** [pngBase64] — a 96x96 PNG, base64 without line breaks; [versionCode] only for a server with apiLevel 15+. */
+    data class Item(val packageName: String, val title: String, val pngBase64: String, val versionCode: Long?)
 
     init {
         if (items.isEmpty() || items.size > MAX_ITEMS) throw IllegalArgumentException()
@@ -799,6 +800,7 @@ data class ReportAppIconsAction(val items: List<Item>): AppLogicAction() {
             writer.name("packageName").value(it.packageName)
             writer.name("title").value(it.title.take(100))
             writer.name("icon").value(it.pngBase64)
+            it.versionCode?.let { versionCode -> writer.name("versionCode").value(versionCode) }
             writer.endObject()
         }
         writer.endArray()
