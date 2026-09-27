@@ -3,13 +3,19 @@ package io.timelimit.android.child
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.lifecycle.lifecycleScope
+import io.timelimit.android.logic.DefaultAppLogic
 import io.timelimit.android.ui.IsAppInForeground
 import io.timelimit.android.ui.lock.LockActivity
+import io.timelimit.ui.R
 import io.timelimit.ui.child.AppAccessScreen
+import kotlinx.coroutines.launch
+import java.io.IOException
 
 // @tag:new-ui
 class ChildLockActivity : ComponentActivity() {
@@ -32,16 +38,35 @@ class ChildLockActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         val packageName = intent.getStringExtra(EXTRA_PACKAGE_NAME)!!
-        // ponytail: "Родитель рядом" and the other-device switch open the upstream lock screen
-        // with its parent password; replace with the parent code (C5) once it exists
         val openUpstream = { LockActivity.start(this, packageName, null) }
+        val logic = DefaultAppLogic.with(this)
+        var switching = false
+        // ponytail: no progress while the server answers — the screen turns to "open" by itself on success
+        val onUseThisDevice: () -> Unit = {
+            if (!switching) {
+                switching = true
+                lifecycleScope.launch {
+                    try {
+                        when (useThisDevice(logic)) {
+                            UseThisDeviceResult.Done -> {}
+                            UseThisDeviceResult.NeedsParent -> openUpstream()
+                            UseThisDeviceResult.OtherDeviceKeepsIt -> toast(R.string.child_use_this_device_busy)
+                        }
+                    } catch (_: IOException) {
+                        toast(R.string.child_use_this_device_offline)
+                    } finally {
+                        switching = false
+                    }
+                }
+            }
+        }
 
         setContent {
             AppAccessScreen(
                 api = ChildApiOverLogic.with(this),
                 packageName = packageName,
                 onParentNearby = openUpstream,
-                onUseThisDevice = openUpstream,
+                onUseThisDevice = onUseThisDevice,
                 onClosedNever = { finish() },
             )
         }
@@ -50,6 +75,8 @@ class ChildLockActivity : ComponentActivity() {
             override fun handleOnBackPressed() {}
         })
     }
+
+    private fun toast(text: Int) = Toast.makeText(this, text, Toast.LENGTH_LONG).show()
 
     override fun onStart() {
         super.onStart()

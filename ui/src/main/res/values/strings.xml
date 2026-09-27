@@ -55,6 +55,8 @@
     <string name="child_parent_nearby">Родитель рядом</string>
     <string name="child_connect_wifi">Подключить Wi-Fi</string>
     <string name="child_use_this_device">Играть на этом планшете</string>
+    <string name="child_use_this_device_offline">Нет связи с сервером — подключись к интернету и нажми ещё раз</string>
+    <string name="child_use_this_device_busy">Другой планшет пока не отпустил — нажми ещё раз через минуту</string>
 
     <string name="child_open_title">Можно — %s открыто</string>
     <string name="child_allowed_until">разрешено до</string>
