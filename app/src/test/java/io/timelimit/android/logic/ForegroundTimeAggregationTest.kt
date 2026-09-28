@@ -17,6 +17,7 @@ package io.timelimit.android.logic
 
 import io.timelimit.android.logic.ForegroundTimeAggregation.Event.EndAll
 import io.timelimit.android.logic.ForegroundTimeAggregation.Event.Paused
+import io.timelimit.android.logic.ForegroundTimeAggregation.Event.Stopped
 import io.timelimit.android.logic.ForegroundTimeAggregation.Event.Resumed
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -75,5 +76,13 @@ class ForegroundTimeAggregationTest {
     @Test
     fun eventsOutsideOfTheRangeAreClipped() {
         assertEquals(mapOf("a" to 100L, "b" to 50L), aggregate(Resumed(900, "a", "A"), Paused(1100, "a", "A"), Resumed(1950, "b", "B"), Paused(2100, "b", "B")))
+    }
+
+    @Test
+    fun stopWithoutPauseEndsTheIntervalButStopFirstStartsNothing() {
+        assertEquals(
+            mapOf("a" to 100L),
+            aggregate(Stopped(1050, "b", "B"), Resumed(1100, "a", "A"), Stopped(1200, "a", "A"), Paused(1300, "a", "A"))
+        )
     }
 }

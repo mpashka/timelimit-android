@@ -26,7 +26,15 @@ object ForegroundTimeAggregation {
         abstract val timestamp: Long
 
         data class Resumed(override val timestamp: Long, val packageName: String, val className: String): Event()
-        data class Paused(override val timestamp: Long, val packageName: String, val className: String): Event()
+        sealed class Left: Event() {
+            abstract val packageName: String
+            abstract val className: String
+        }
+
+        data class Paused(override val timestamp: Long, override val packageName: String, override val className: String): Left()
+        // Android may report a stop with no pause before it (an activity leaving at once); Y700, 2026-09-28:
+        // without this the app stayed «in the foreground» until midnight — 58 h a day summed over apps
+        data class Stopped(override val timestamp: Long, override val packageName: String, override val className: String): Left()
         // device shutdown or startup: nothing can stay in the foreground across it
         data class EndAll(override val timestamp: Long): Event()
     }
@@ -68,6 +76,8 @@ object ForegroundTimeAggregation {
                     is Event.EndAll -> break
                     is Event.Resumed -> seen.add(event.packageName to event.className)
                     is Event.Paused -> if (seen.add(event.packageName to event.className)) resume(event.packageName, event.className, start)
+                    // a stop follows a pause, so a stop first says nothing about the start of the range
+                    is Event.Stopped -> seen.add(event.packageName to event.className)
                 }
             }
         }
@@ -75,7 +85,7 @@ object ForegroundTimeAggregation {
         for (event in sorted) {
             when (event) {
                 is Event.Resumed -> resume(event.packageName, event.className, event.timestamp)
-                is Event.Paused -> {
+                is Event.Left -> {
                     val classes = resumedClasses[event.packageName]
 
                     if (classes != null && classes.remove(event.className) && classes.isEmpty()) finish(event.packageName, event.timestamp)
@@ -106,6 +116,7 @@ object ForegroundTimeAggregation {
             when (event.eventType) {
                 UsageStatsConstants.MOVE_TO_FOREGROUND -> result.add(Event.Resumed(event.timeStamp, event.packageName, event.className ?: ""))
                 UsageStatsConstants.MOVE_TO_BACKGROUND -> result.add(Event.Paused(event.timeStamp, event.packageName, event.className ?: ""))
+                UsageStatsConstants.ACTIVITY_STOPPED -> result.add(Event.Stopped(event.timeStamp, event.packageName, event.className ?: ""))
                 UsageStatsConstants.DEVICE_STARTUP, DEVICE_SHUTDOWN -> result.add(Event.EndAll(event.timeStamp))
             }
         }
