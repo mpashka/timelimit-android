@@ -42,7 +42,9 @@ class AppActivityReportLogic(private val appLogic: AppLogic) {
         private const val MIN_SERVER_API_LEVEL = 12
         private const val PREFS = "app_activity_report"
         private const val KEY_NEW_APPS = "new_apps"
-        private const val KEY_ICONS_SENT = "icons_sent"
+        // renamed so every tablet sends its icons once more: since apiLevel 16 the server records which tablet
+        // sent each one, and that is how the console tells home-screen apps from service ones
+        private const val KEY_ICONS_SENT = "icons_sent_by_tablet"
         private const val ICON_SIZE = 96
         private const val MAX_ICON_BASE64 = 65536
 
