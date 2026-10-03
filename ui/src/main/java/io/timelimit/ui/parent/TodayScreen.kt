@@ -41,6 +41,7 @@ import io.timelimit.api.ParentCategory
 import io.timelimit.ui.R
 import io.timelimit.ui.child.AppIcon
 import io.timelimit.ui.child.LocalChildColors
+import io.timelimit.ui.child.WeekLine
 import io.timelimit.ui.child.formatClock
 import io.timelimit.ui.child.formatDuration
 
@@ -264,6 +265,7 @@ fun CategoryCard(category: ParentCategory, child: ChildHome, api: ParentApi, act
         } ?: run {
             if (category.usedToday > 0) Text(stringResource(R.string.parent_used_today, formatDuration(category.usedToday)), color = colors.secondary, fontSize = 13.sp)
         }
+        category.week?.let { WeekLine(it, 13.sp) }
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             listOf(15, 30, 60).forEach { minutes ->
                 Chip("+$minutes") { actions(added.format(category.ref.title, minutes)) { api.addTime(category.ref.id, minutes) } }

@@ -6,6 +6,7 @@
     <string name="child_category_line">· категория %s</string>
 
     <string name="child_reason_limit_over">%s: лимит на сегодня кончился</string>
+    <string name="child_reason_week_limit_over">%s: недельный лимит исчерпан</string>
     <string name="child_reason_extra_time_later">Сейчас нельзя, но у тебя есть ещё %s</string>
     <string name="child_reason_mode_named">Сейчас %s — закрыто всё, кроме «Всегда можно»</string>
     <string name="child_reason_closed_until">Закрыто до %s</string>
@@ -33,6 +34,7 @@
     <string name="child_day_tomorrow">завтра</string>
     <string name="child_after_break_remaining">После перерыва на сегодня останется %s.</string>
     <string name="child_remaining_today">Осталось на сегодня: %s</string>
+    <string name="week_used_of">неделя: %1$s из %2$s</string>
 
     <string name="child_call_parent">Позови родителя</string>
     <string name="child_call_parent_or_wifi">Или подключись к Wi-Fi — тогда откроется само.</string>

@@ -44,6 +44,7 @@ import io.timelimit.api.AppAccess
 import io.timelimit.api.ChildApi
 import io.timelimit.api.CloseReason
 import io.timelimit.api.Request
+import io.timelimit.api.WeekLimit
 import io.timelimit.ui.R
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -155,6 +156,7 @@ private fun BigTime(label: String, time: String, color: Color) {
 @Composable
 private fun reasonText(reason: CloseReason, category: String, app: String, opensAt: Long?): String = when (reason) {
     CloseReason.LimitOver -> stringResource(R.string.child_reason_limit_over, category)
+    CloseReason.WeekLimitOver -> stringResource(R.string.child_reason_week_limit_over, category)
     is CloseReason.ExtraTimeLater -> stringResource(R.string.child_reason_extra_time_later, formatDuration(reason.extraTime))
     is CloseReason.Mode -> reason.kind?.let { stringResource(R.string.child_reason_mode_named, modeName(it)) }
         ?: opensAt?.let { stringResource(R.string.child_reason_closed_until, formatClock(it)) }
@@ -185,7 +187,7 @@ private fun daysText(days: Int): String {
 
 private val CloseReason.canAsk
     get() = when (this) {
-        CloseReason.LimitOver, is CloseReason.ExtraTimeLater, is CloseReason.Mode,
+        CloseReason.LimitOver, CloseReason.WeekLimitOver, is CloseReason.ExtraTimeLater, is CloseReason.Mode,
         CloseReason.ClosedByParent, CloseReason.NewApp,
         is CloseReason.AppOnlyOnDays, CloseReason.AppClosedByParent, CloseReason.AppLimitOver -> true
         else -> false
@@ -252,6 +254,7 @@ fun ClosedApp(
                     color = colors.secondary, fontSize = 16.sp
                 )
             }
+            access.week?.let { WeekLine(it, 16.sp) }
         },
         right = {
             if (reason.canAsk) RequestPane(access.request, now, onAsk)
@@ -381,6 +384,12 @@ private fun LimitOverPreview() = ChildTheme {
 @Composable
 private fun SentPreview() = ChildTheme {
     ClosedApp(FakeChildApi.closed(CloseReason.LimitOver, Request.Sent(FakeChildApi.NOW, "Дострою дом и всё, честно")), {}, {}, {})
+}
+
+@Preview(widthDp = 1100, heightDp = 700)
+@Composable
+private fun WeekLimitOverPreview() = ChildTheme {
+    ClosedApp(FakeChildApi.closed(CloseReason.WeekLimitOver, Request.None).copy(week = WeekLimit(300 * 60_000L, 300 * 60_000L)), {}, {}, {})
 }
 
 @Preview(widthDp = 600, heightDp = 900)

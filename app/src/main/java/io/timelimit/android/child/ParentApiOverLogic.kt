@@ -9,6 +9,7 @@ import io.timelimit.android.data.model.User
 import io.timelimit.android.data.model.UserType
 import io.timelimit.android.data.model.derived.CategoryRelatedData
 import io.timelimit.android.data.model.derived.UserRelatedData
+import io.timelimit.android.date.DateInTimezone
 import io.timelimit.android.date.getMinuteOfWeek
 import io.timelimit.android.integration.platform.BatteryStatus
 import io.timelimit.android.logic.AppLogic
@@ -305,15 +306,14 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
         ))
     }
 
+    // @tag:category-limits
     private fun parentCategory(
         category: CategoryRelatedData, depth: Int, cache: CategoryHandlingCache,
         todayEpoch: Int, today: LocalDate, nowMinute: Int, minuteStart: Long, now: Long,
     ): ParentCategory {
         val handling = cache.get(category.category.id)
         val blocked = Schedules.blockedMinutes(category)
-        val dayBit = 1 shl (today.dayOfWeek.value - 1)
-        val limit = category.rules.filter { it.appliesToWholeDay && it.dayMask.toInt() and dayBit != 0 && it.maximumTimeInMillis > 0 }
-            .minOfOrNull { it.maximumTimeInMillis.toLong() }
+        val limits = CategoryLimits(category.rules, category.usedTimes, DateInTimezone.newInstance(today), now)
         val tempBlocked = category.category.temporarilyBlocked &&
                 (category.category.temporarilyBlockedEndTime == 0L || category.category.temporarilyBlockedEndTime > now)
 
@@ -323,7 +323,8 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
             remaining = handling.remainingTime?.includingExtraTime,
             usedToday = category.usedTimes.filter { it.dayOfEpoch == todayEpoch && it.startTimeOfDay == 0 && it.endTimeOfDay == 24 * 60 - 1 }
                 .sumOf { it.usedMillis },
-            limit = limit,
+            limit = limits.dayLimit,
+            week = limits.week,
             closedByModeUntil = if (blocked[nowMinute]) ModeClock.minutesUntilOpen(blocked, nowMinute)?.let { minuteStart + it * MINUTE } else null,
             closedByParentUntil = category.category.temporarilyBlockedEndTime.takeIf { tempBlocked && it != 0L },
             closedByParent = tempBlocked,

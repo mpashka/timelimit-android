@@ -117,7 +117,10 @@ data class ParentCategory(
     /** null — no limit */
     val remaining: Long?,
     val usedToday: Long,
+    /** the day limit in force today, weekly rules aside; null — none */
     val limit: Long?,
+    /** null — no weekly limit today */
+    val week: WeekLimit?,
     val closedByModeUntil: Long?,
     val closedByParentUntil: Long?,
     val closedByParent: Boolean,

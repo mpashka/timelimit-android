@@ -9,8 +9,10 @@ import io.timelimit.android.data.model.ChildRequest
 import io.timelimit.android.data.model.ChildRequestAnswer
 import io.timelimit.android.data.model.User
 import io.timelimit.android.data.model.UserType
+import io.timelimit.android.data.model.derived.CategoryRelatedData
 import io.timelimit.android.data.model.derived.DeviceAndUserRelatedData
 import io.timelimit.android.data.model.derived.UserRelatedData
+import io.timelimit.android.date.DateInTimezone
 import io.timelimit.android.date.getMinuteOfWeek
 import io.timelimit.android.logic.AppLogic
 import io.timelimit.android.logic.AppRuleCheck
@@ -151,6 +153,11 @@ class ChildApiOverLogic(private val logic: AppLogic) : ChildApi {
             .find { it.shouldBlockActivities }
     }
 
+    // @tag:category-limits
+    private fun limits(category: CategoryRelatedData, now: Long, timeZone: TimeZone) =
+        CategoryLimits(category.rules, category.usedTimes, DateInTimezone.newInstance(now, timeZone), now)
+
+    // @tag:category-limits
     private fun computeAccess(
         data: DeviceAndUserRelatedData?,
         users: List<User>,
@@ -180,9 +187,10 @@ class ChildApiOverLogic(private val logic: AppLogic) : ChildApi {
                 remainingToday = blocking.remainingTime?.includingExtraTime?.takeIf { it > 0 },
                 request = request,
                 grant = grant,
+                week = limits(blocking.createdWithCategoryRelatedData, time.timeInMillis, user.timeZone).week,
             )
             base is AppBaseHandling.BlockDueToNoCategory && allowedUntil == null -> AppAccess.Closed(
-                app, null, CloseReason.NewApp, null, null, request, grant
+                app, null, CloseReason.NewApp, null, null, request, grant, null
             )
             // @tag:app-rule
             allowedUntil == null && categories.none { it.areLimitsTemporarilyDisabled } && time.shouldTrustTimeTemporarily &&
@@ -206,6 +214,7 @@ class ChildApiOverLogic(private val logic: AppLogic) : ChildApi {
                     remainingToday = null,
                     request = request,
                     grant = grant,
+                    week = category?.let { limits(it.createdWithCategoryRelatedData, time.timeInMillis, user.timeZone).week },
                 )
             }
             else -> {
@@ -250,8 +259,12 @@ class ChildApiOverLogic(private val logic: AppLogic) : ChildApi {
         ) BlockingReason.BlockedAtThisTime
         else handling.activityBlockingReason
 
+    private fun daysUntilWeekOpens(handling: CategoryItselfHandling, now: Long): Int? =
+        limits(handling.createdWithCategoryRelatedData, now, handling.createdWithUserRelatedData.timeZone).daysUntilWeekOpens
+
+    // @tag:category-limits
     private fun closeReason(handling: CategoryItselfHandling, now: Long): CloseReason = when (reason(handling, now)) {
-        BlockingReason.TimeOver -> CloseReason.LimitOver
+        BlockingReason.TimeOver -> if (daysUntilWeekOpens(handling, now) != null) CloseReason.WeekLimitOver else CloseReason.LimitOver
         BlockingReason.TimeOverExtraTimeCanBeUsedLater -> CloseReason.ExtraTimeLater(handling.createdWithExtraTime)
         BlockingReason.BlockedAtThisTime -> CloseReason.Mode(
             Schedules.kindAt(handling.createdWithCategoryRelatedData, getMinuteOfWeek(now, handling.createdWithUserRelatedData.timeZone))?.toApi()
@@ -271,6 +284,7 @@ class ChildApiOverLogic(private val logic: AppLogic) : ChildApi {
         BlockingReason.TemporarilyBlocked, BlockingReason.NotificationsAreBlocked, BlockingReason.None -> CloseReason.ClosedByParent
     }
 
+    // @tag:category-limits
     // ponytail: ignores rules limited to part of a day and a zero limit on the next day;
     // the full "when does it open" function is in docs/specification/child-ui.md, "До скольки"
     private fun opensAt(handling: CategoryItselfHandling, now: Long, timeZone: TimeZone): Long? {
@@ -280,11 +294,7 @@ class ChildApiOverLogic(private val logic: AppLogic) : ChildApi {
         val minuteStart = now - now % MINUTE
 
         return when (reason(handling, now)) {
-            BlockingReason.TimeOver -> {
-                val nextDay = ModeClock.nextDayStart(nowMinute)
-                ModeClock.minutesUntilOpen(blocked, nextDay % ModeClock.WEEK)
-                    ?.let { minuteStart + (nextDay - nowMinute + it) * MINUTE }
-            }
+            BlockingReason.TimeOver -> dayStartAfterModes(handling, now, timeZone, daysUntilWeekOpens(handling, now) ?: 1)
             BlockingReason.BlockedAtThisTime -> ModeClock.minutesUntilOpen(blocked, nowMinute)
                 ?.takeIf { it > 0 }
                 ?.let { minuteStart + it * MINUTE }
@@ -297,6 +307,7 @@ class ChildApiOverLogic(private val logic: AppLogic) : ChildApi {
         }
     }
 
+    // @tag:category-limits
     private fun computeToday(data: DeviceAndUserRelatedData?): Today {
         val time = now()
         val user = data?.userRelatedData
@@ -318,7 +329,8 @@ class ChildApiOverLogic(private val logic: AppLogic) : ChildApi {
                 remaining = handling.remainingTime?.includingExtraTime,
                 closedNow = handling.shouldBlockActivities,
                 apps = appsByCategory[category.category.id].orEmpty().distinct()
-                    .mapNotNull { packageName -> logic.platformIntegration.getLocalAppTitle(packageName)?.let { App(packageName, it) } }
+                    .mapNotNull { packageName -> logic.platformIntegration.getLocalAppTitle(packageName)?.let { App(packageName, it) } },
+                week = limits(category, time.timeInMillis, user.timeZone).week,
             )
         }
         val nextMode = user.categories

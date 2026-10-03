@@ -13,6 +13,7 @@ import io.timelimit.api.ParentCode
 import io.timelimit.api.Request
 import io.timelimit.api.Today
 import io.timelimit.api.WaitingRequest
+import io.timelimit.api.WeekLimit
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
@@ -42,15 +43,16 @@ class FakeChildApi : ChildApi {
             remainingToday = null,
             request = request,
             grant = GrantChoice("Игры", NOW + 160 * MINUTE),
+            week = WeekLimit(260 * MINUTE, 300 * MINUTE),
         )
 
         val exampleToday = Today(
             now = NOW,
             categories = listOf(
-                CategoryToday("Игры", 18 * MINUTE, false, listOf(minecraft, brawlStars, roblox)),
-                CategoryToday("Видео", 22 * MINUTE, false, listOf(youtube)),
-                CategoryToday("Учёба", null, false, listOf(duolingo, uchiru)),
-                CategoryToday("Всегда можно", null, false, listOf(chrome, camera)),
+                CategoryToday("Игры", 18 * MINUTE, false, listOf(minecraft, brawlStars, roblox), WeekLimit(260 * MINUTE, 300 * MINUTE)),
+                CategoryToday("Видео", 22 * MINUTE, false, listOf(youtube), null),
+                CategoryToday("Учёба", null, false, listOf(duolingo, uchiru), null),
+                CategoryToday("Всегда можно", null, false, listOf(chrome, camera), null),
             ),
             waiting = listOf(WaitingRequest(roblox, NOW - 6 * MINUTE)),
             nextMode = ModeWindow(ModeKind.Sleep, NOW + 160 * MINUTE, NOW + 760 * MINUTE),

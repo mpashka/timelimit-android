@@ -53,11 +53,16 @@ sealed interface AppAccess {
         val request: Request,
         /** null — no parent code on this device (no server secret yet) */
         val grant: GrantChoice?,
+        /** null — the category has no weekly limit today */
+        // @tag:category-limits
+        val week: WeekLimit?,
     ) : AppAccess
 }
 
 sealed interface CloseReason {
     data object LimitOver : CloseReason
+    // @tag:category-limits
+    data object WeekLimitOver : CloseReason
     data class ExtraTimeLater(val extraTime: Long) : CloseReason
     data class Mode(val kind: ModeKind?) : CloseReason
     data object ClosedByParent : CloseReason
@@ -100,7 +105,13 @@ data class CategoryToday(
     val remaining: Long?,
     val closedNow: Boolean,
     val apps: List<App>,
+    /** null — no weekly limit today */
+    val week: WeekLimit?,
 )
+
+/** A rule that sums the days it applies to over the current week (perDay off), as used/limit milliseconds. */
+// @tag:category-limits
+data class WeekLimit(val used: Long, val limit: Long)
 
 data class WaitingRequest(val app: App, val sentAt: Long)
 

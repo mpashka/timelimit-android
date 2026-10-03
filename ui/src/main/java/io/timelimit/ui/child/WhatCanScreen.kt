@@ -24,11 +24,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.timelimit.api.CategoryToday
 import io.timelimit.api.ChildApi
 import io.timelimit.api.Today
+import io.timelimit.api.WeekLimit
 import io.timelimit.ui.R
 
 /** C2·в of docs/specification/mockups/child.html: what can be used now, opened from the widget. */
@@ -90,6 +92,7 @@ private fun CategoryCard(category: CategoryToday) {
     ) {
         Column(Modifier.weight(1f)) {
             Text(category.title, color = colors.text, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+            category.week?.let { WeekLine(it, 16.sp) }
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 category.apps.take(8).forEach { AppIcon(it.packageName, it.title, 32.dp) }
@@ -104,6 +107,18 @@ private fun CategoryCard(category: CategoryToday) {
             color = accent, fontSize = 30.sp, fontWeight = FontWeight.Bold
         )
     }
+}
+
+/** Shown whenever the category has a weekly limit: the day line alone reads as "time over at 6 of 60". */
+// @tag:category-limits
+@Composable
+fun WeekLine(week: WeekLimit, fontSize: TextUnit) {
+    val colors = LocalChildColors.current
+
+    Text(
+        stringResource(R.string.week_used_of, formatDuration(week.used), formatDuration(week.limit)),
+        color = if (week.used >= week.limit) colors.closed else colors.secondary, fontSize = fontSize
+    )
 }
 
 @Preview(widthDp = 800, heightDp = 1100)
