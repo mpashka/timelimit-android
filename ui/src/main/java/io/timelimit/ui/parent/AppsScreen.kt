@@ -40,10 +40,10 @@ fun AppsScreen(child: ChildHome, api: ParentApi, actions: ParentActions, onApp: 
     SectionTitle(stringResource(R.string.parent_apps_of, child.name))
 
     when (val usage = child.usage) {
-        is AppUsage.Known -> usage.week.groupBy { it.categoryTitle }.forEach { (category, lines) ->
-            Text(category ?: stringResource(R.string.parent_without_category), color = colors.secondary, fontSize = 14.sp)
+        is AppUsage.Known -> usage.week.groupBy { it.category }.forEach { (category, lines) ->
+            Text(category?.title ?: stringResource(R.string.parent_without_category), color = colors.secondary, fontSize = 14.sp)
             lines.forEach { line ->
-                AppRow(line.copy(categoryTitle = line.rule?.let { ruleText(it) })) { onApp(line.app.packageName) }
+                AppRow(line, line.rule?.let { ruleText(it) }) { onApp(line.app.packageName) }
             }
         }
         AppUsage.Loading -> Text(stringResource(R.string.parent_usage_loading), color = colors.secondary)
@@ -63,7 +63,7 @@ fun AppCard(child: ChildHome, packageName: String, api: ParentApi, actions: Pare
     val today = usage?.today?.find { it.app.packageName == packageName }?.ms ?: 0
     val days = usage?.weekByDay?.get(packageName) ?: List(7) { 0L }
     val rule = line?.rule
-    val category = child.categories.find { it.ref.title == line?.categoryTitle }
+    val category = child.categories.find { it.ref.id == line?.category?.id }
     val set = stringResource(R.string.parent_rule_set)
     val movedTo = stringResource(R.string.parent_moved_to)
 

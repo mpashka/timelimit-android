@@ -155,7 +155,7 @@ private fun AppsSection(child: ChildHome, api: ParentApi, actions: ParentActions
     child.newApps.forEach { NewAppCard(it, child, api, actions) }
 
     when (val usage = child.usage) {
-        is AppUsage.Known -> (if (week) usage.week else usage.today).take(10).forEach { AppRow(it) { onApp(it.app.packageName) } }
+        is AppUsage.Known -> (if (week) usage.week else usage.today).take(10).forEach { AppRow(it, it.category?.title) { onApp(it.app.packageName) } }
         AppUsage.Loading -> Text(stringResource(R.string.parent_usage_loading), color = colors.secondary, fontSize = 14.sp)
         AppUsage.NeedsSignIn -> Text(stringResource(R.string.parent_usage_needs_sign_in), color = colors.secondary, fontSize = 14.sp)
         is AppUsage.Failed -> Text(usageFailure(usage), color = colors.secondary, fontSize = 14.sp)
@@ -163,7 +163,7 @@ private fun AppsSection(child: ChildHome, api: ParentApi, actions: ParentActions
 }
 
 @Composable
-fun AppRow(line: AppTime, onClick: () -> Unit) {
+fun AppRow(line: AppTime, note: String?, onClick: () -> Unit) {
     val colors = LocalChildColors.current
 
     Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -171,7 +171,7 @@ fun AppRow(line: AppTime, onClick: () -> Unit) {
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(line.app.title, color = colors.text, fontSize = 16.sp)
-            line.categoryTitle?.let { Text(it, color = colors.secondary, fontSize = 13.sp) }
+            note?.takeIf { it.isNotEmpty() }?.let { Text(it, color = colors.secondary, fontSize = 13.sp) }
         }
         Text(formatDuration(line.ms), color = colors.text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
     }
@@ -283,7 +283,10 @@ fun TabletsScreen(child: ChildHome) {
 
     child.tablets.forEach { tablet ->
         Card {
-            Text(tablet.name, color = colors.text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(tablet.name, color = colors.text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                tablet.todayMs?.let { Text(formatDuration(it), color = colors.text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold) }
+            }
             Text(
                 when {
                     !tablet.online && tablet.seen == 0L -> stringResource(R.string.parent_tablet_unknown)

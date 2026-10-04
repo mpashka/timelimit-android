@@ -50,6 +50,7 @@ import io.timelimit.api.App
 import io.timelimit.api.AppRuleLine
 import io.timelimit.api.AppTime
 import io.timelimit.api.AppUsage
+import io.timelimit.api.appsTimeOfCategory
 import io.timelimit.api.CategoryRef
 import io.timelimit.api.ChildHome
 import io.timelimit.api.GrantScope
@@ -182,8 +183,11 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
         val nowMinute = getMinuteOfWeek(now, data.timeZone)
         val minuteStart = now - now % MINUTE
         val sorted = data.sortedCategories()
-        val categories = sorted.map { (depth, category) -> parentCategory(category, depth, cache, todayEpoch, today, nowMinute, minuteStart, now) }
-        val categoryRefs = categories.map { it.ref }
+        val ownTime = sorted.map { (depth, category) ->
+            parentCategory(category, depth, category.category.parentCategoryId.takeIf { data.categoryById.containsKey(it) },
+                cache, todayEpoch, today, nowMinute, minuteStart, now)
+        }
+        val categoryRefs = ownTime.map { it.ref }
 
         val windows = data.categories.filter { it.category.parentCategoryId.isEmpty() }.map { it to Schedules.blockedMinutes(it) }
         val modeNow = windows.filter { it.second[nowMinute] }
@@ -202,11 +206,12 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
             rows != null -> {
                 val categoryOf = { packageName: String ->
                     (data.categoryApps.find { it.appSpecifier.packageName == packageName }?.categoryId ?: child.categoryForNotAssignedApps)
-                        .let { id -> categoryRefs.find { it.id == id }?.title }
+                        .let { id -> categoryRefs.find { it.id == id } }
                 }
                 fun lines(filter: (AppUsageRow) -> Boolean) = rows.filter(filter).groupBy { it.packageName }
                     .map { (packageName, items) ->
                         AppTime(app(packageName), items.sumOf { it.ms }, categoryOf(packageName),
+                            items.groupBy { it.deviceId }.mapValues { (_, ofTablet) -> ofTablet.sumOf { it.ms } },
                             child.appRules.find { it.packageName == packageName }?.let { AppRuleLine(it.days, it.limitMinutes) })
                     }
                     .sortedByDescending { it.ms }
@@ -238,6 +243,11 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
             }
         }
         val usageToday = (appUsage as? AppUsage.Known)?.today.orEmpty()
+        // @tag:category-time
+        val categories = ownTime.map { category ->
+            if (category.limit != null) category
+            else category.copy(usedToday = maxOf(category.usedToday, appsTimeOfCategory(ownTime, category.ref.id, usageToday)))
+        }
 
         val requests = child.childRequests
             .filter { it.answer == null && now < it.expiresAt }
@@ -266,7 +276,14 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
         val tablets = devices.filter { it.currentUserId == child.id }.map { tablet ->
             val state = states.find { it.deviceId == tablet.id }
 
-            TabletLine(tablet.name, state != null && now - state.seen < ONLINE, state?.seen ?: 0, state?.app?.takeIf { it.isNotEmpty() }?.let { app(it) })
+            TabletLine(
+                id = tablet.id,
+                name = tablet.name,
+                online = state != null && now - state.seen < ONLINE,
+                seen = state?.seen ?: 0,
+                appNow = state?.app?.takeIf { it.isNotEmpty() }?.let { app(it) },
+                todayMs = rows?.filter { it.deviceId == tablet.id && it.day == todayEpoch }?.sumOf { it.ms },
+            )
         }
 
         val bans = Schedules.readBans(data.categories)
@@ -308,7 +325,7 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
 
     // @tag:category-limits
     private fun parentCategory(
-        category: CategoryRelatedData, depth: Int, cache: CategoryHandlingCache,
+        category: CategoryRelatedData, depth: Int, parentId: String?, cache: CategoryHandlingCache,
         todayEpoch: Int, today: LocalDate, nowMinute: Int, minuteStart: Long, now: Long,
     ): ParentCategory {
         val handling = cache.get(category.category.id)
@@ -320,6 +337,7 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
         return ParentCategory(
             ref = CategoryRef(category.category.id, category.category.title),
             depth = depth,
+            parentId = parentId,
             remaining = handling.remainingTime?.includingExtraTime,
             usedToday = category.usedTimes.filter { it.dayOfEpoch == todayEpoch && it.startTimeOfDay == 0 && it.endTimeOfDay == 24 * 60 - 1 }
                 .sumOf { it.usedMillis },

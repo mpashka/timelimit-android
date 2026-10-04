@@ -103,7 +103,9 @@ sealed interface AppUsage {
     data class Failed(val httpCode: Int?, val detail: String) : AppUsage
 }
 
-data class AppTime(val app: App, val ms: Long, val categoryTitle: String?, val rule: AppRuleLine?)
+/** [byTablet] — the same time split by tablet id; a tablet missing from it had no time with the app. */
+// @tag:app-usage
+data class AppTime(val app: App, val ms: Long, val category: CategoryRef?, val byTablet: Map<String, Long>, val rule: AppRuleLine?)
 
 data class AppRuleLine(val days: Int, val limitMinutes: Int)
 
@@ -114,6 +116,8 @@ data class CategoryRef(val id: String, val title: String)
 data class ParentCategory(
     val ref: CategoryRef,
     val depth: Int,
+    /** null — a category of the top level */
+    val parentId: String?,
     /** null — no limit */
     val remaining: Long?,
     val usedToday: Long,
@@ -141,4 +145,5 @@ data class ParentRequest(
 
 data class AnsweredLine(val app: App, val at: Long, val allowed: Boolean, val until: Long)
 
-data class TabletLine(val name: String, val online: Boolean, val seen: Long, val appNow: App?)
+/** [todayMs] null — the time by app is not known at all, not "nothing used today". */
+data class TabletLine(val id: String, val name: String, val online: Boolean, val seen: Long, val appNow: App?, val todayMs: Long?)
