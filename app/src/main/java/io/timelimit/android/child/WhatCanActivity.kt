@@ -23,7 +23,12 @@ class WhatCanActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContent { WhatCanScreen(ChildApiOverLogic.with(this)) }
+        setContent {
+            WhatCanScreen(
+                api = ChildApiOverLogic.with(this),
+                openParent = { startActivity(UiChoice.oldMainIntent(this)) }
+            )
+        }
     }
 
     override fun onStart() {

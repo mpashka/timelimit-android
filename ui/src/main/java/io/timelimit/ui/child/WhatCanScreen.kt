@@ -15,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Text
+import androidx.compose.material.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -33,17 +34,17 @@ import io.timelimit.api.Today
 import io.timelimit.api.WeekLimit
 import io.timelimit.ui.R
 
-/** C2·в of docs/specification/mockups/child.html: what can be used now, opened from the widget. */
+/** C2·в of docs/specification/mockups/child.html: what can be used now, opened from the widget and from the launcher. */
 // @tag:new-ui
 @Composable
-fun WhatCanScreen(api: ChildApi) {
+fun WhatCanScreen(api: ChildApi, openParent: () -> Unit) {
     val today by api.today.collectAsState(initial = null)
 
-    ChildTheme { today?.let { WhatCan(it) } }
+    ChildTheme { today?.let { WhatCan(it, openParent) } }
 }
 
 @Composable
-fun WhatCan(today: Today) {
+fun WhatCan(today: Today, openParent: () -> Unit = {}) {
     val colors = LocalChildColors.current
 
     Column(
@@ -73,6 +74,10 @@ fun WhatCan(today: Today) {
                     color = colors.text, fontSize = 16.sp
                 )
             }
+        }
+
+        TextButton(onClick = openParent, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.child_for_parent), color = colors.secondary, fontSize = 16.sp)
         }
     }
 }

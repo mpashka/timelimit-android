@@ -47,7 +47,7 @@ object Dns {
                     emptyList<InetAddress>()
                 }
 
-                val b = try {
+                val b = if (BuildConfig.backupServerDomain == BuildConfig.serverDomain) emptyList<InetAddress>() else try {
                     system.lookup(BuildConfig.backupServerDomain)
                 } catch (ex: UnknownHostException) {
                     if (BuildConfig.DEBUG) {

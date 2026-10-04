@@ -41,8 +41,17 @@ object UiChoice {
 
     fun oldMainIntent(context: Context): Intent = Intent(context, MainActivity::class.java).putExtra(EXTRA_STAY_OLD, true)
 
-    /** The launcher opens [MainActivity]; with the new interface a parent is sent on to [ParentActivity] once the user is known. */
-    fun redirectParent(activity: ComponentActivity, isFreshStart: Boolean, showSignIn: () -> Unit) {
+    /**
+     * The launcher opens [MainActivity]; with the new interface the device user sends it on once known —
+     * a parent to [ParentActivity], a child to [WhatCanActivity] instead of the upstream overview.
+     */
+    fun launcherTarget(type: UserType?): Class<out ComponentActivity>? = when (type) {
+        UserType.Parent -> ParentActivity::class.java
+        UserType.Child -> WhatCanActivity::class.java
+        null -> null
+    }
+
+    fun redirectFromLauncher(activity: ComponentActivity, isFreshStart: Boolean, showSignIn: () -> Unit) {
         if (activity.intent.getBooleanExtra(EXTRA_SIGN_IN, false)) {
             if (isFreshStart) showSignIn()
 
@@ -63,9 +72,11 @@ object UiChoice {
 
         var done = false
         DefaultAppLogic.with(activity).deviceUserEntry.observe(activity) { user ->
-            if (!done && user?.type == UserType.Parent) {
+            val target = launcherTarget(user?.type)
+
+            if (!done && target != null) {
                 done = true
-                activity.startActivity(Intent(activity, ParentActivity::class.java))
+                activity.startActivity(Intent(activity, target))
                 activity.finish()
             }
         }

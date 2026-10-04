@@ -89,6 +89,7 @@
     <string name="child_until">до %s</string>
 
     <string name="child_parent">Родитель</string>
+    <string name="child_for_parent">Настройки родителя</string>
     <string name="child_outcome_allowed">Разрешено: %1$s до %2$s</string>
     <string name="child_outcome_allowed_by">Разрешил: %s</string>
     <string name="child_outcome_refused">Отказано: %s</string>

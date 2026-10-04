@@ -85,9 +85,12 @@ android {
         }
         productionServer {
             dimension 'server'
-            buildConfigField 'String', 'serverUrl', '"https://api.timelimit.io"'
-            buildConfigField 'String', 'serverDomain', '"api.timelimit.io"'
-            buildConfigField 'String', 'backupServerDomain', '"api.timelimitapp.de"'
+            // our family server, so the setup wizard needs no «select custom server» step;
+            // certificate pinning below holds because it is a Let's Encrypt certificate too
+            // @tag:sync-server
+            buildConfigField 'String', 'serverUrl', '"https://child-time.pasha-home.ru"'
+            buildConfigField 'String', 'serverDomain', '"child-time.pasha-home.ru"'
+            buildConfigField 'String', 'backupServerDomain', '"child-time.pasha-home.ru"'
             buildConfigField 'boolean', 'hasServer', 'true'
             // no applicationIdSuffix
         }
