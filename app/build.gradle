@@ -244,6 +244,7 @@ dependencies {
     implementation 'org.whispersystems:curve25519-java:0.5.0'
 
     implementation 'com.google.zxing:core:3.5.4'
+    implementation 'com.journeyapps:zxing-android-embedded:4.3.0'
 
     api "com.squareup.wire:wire-runtime:5.5.0"
 }
