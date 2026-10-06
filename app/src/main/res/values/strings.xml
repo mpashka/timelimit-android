@@ -1611,6 +1611,9 @@
         Enter here the code which is shown there or use the barcode scan option.
     </string>
     <string name="setup_remote_child_hint_code">Code to connect</string>
+    <string name="setup_remote_child_google_button">Sign in with Google</string>
+    <string name="setup_remote_child_google_hint">A browser will open: sign in with the child\'s account and tap \"Agree\". This screen will continue on its own.</string>
+    <string name="setup_remote_child_google_no_browser">No browser found on this device to sign in with Google</string>
 
     <string name="setup_select_connected_mode_intro">How would you like to sign in?</string>
     <string name="setup_select_mode_outro">You can change your opinion later, but you have to reinstall TimeLimit in this case</string>

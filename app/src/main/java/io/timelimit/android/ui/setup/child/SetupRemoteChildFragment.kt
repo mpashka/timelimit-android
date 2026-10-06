@@ -15,6 +15,9 @@
  */
 package io.timelimit.android.ui.setup.child
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -22,12 +25,14 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProviders
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.snackbar.Snackbar
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import io.timelimit.android.R
 import io.timelimit.android.databinding.SetupRemoteChildFragmentBinding
 import io.timelimit.android.extensions.setOnEnterListenr
+import kotlinx.coroutines.launch
 
 // @tag:family-join-qr
 class SetupRemoteChildFragment : Fragment() {
@@ -59,6 +64,19 @@ class SetupRemoteChildFragment : Fragment() {
             )
         }
 
+        // @tag:family-join-google
+        binding.googleJoinButton.setOnClickListener {
+            lifecycleScope.launch {
+                val url = model.startGoogleJoin()
+
+                try {
+                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                } catch (ex: ActivityNotFoundException) {
+                    Snackbar.make(binding.root, R.string.setup_remote_child_google_no_browser, Snackbar.LENGTH_LONG).show()
+                }
+            }
+        }
+
         model.status.observe(this, Observer {
             status ->
 
@@ -80,5 +98,17 @@ class SetupRemoteChildFragment : Fragment() {
         })
 
         return binding.root
+    }
+
+    override fun onResume() {
+        super.onResume()
+
+        model.resumeGoogleJoinPolling()
+    }
+
+    override fun onPause() {
+        super.onPause()
+
+        model.pauseGoogleJoinPolling()
     }
 }

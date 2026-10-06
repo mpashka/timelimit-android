@@ -59,6 +59,20 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content" />
 
+                    <Button
+                        android:id="@+id/google_join_button"
+                        android:layout_gravity="center_horizontal"
+                        android:text="@string/setup_remote_child_google_button"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+
+                    <TextView
+                        android:layout_marginBottom="16dp"
+                        android:gravity="center_horizontal"
+                        android:text="@string/setup_remote_child_google_hint"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content" />
+
                     <EditText
                         android:id="@+id/edit_code"
                         android:inputType="text"
