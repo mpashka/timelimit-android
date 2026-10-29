@@ -190,6 +190,7 @@
     <string name="parent_closed_mode_until">закрыто до %s — режим</string>
     <string name="parent_no_limit">без лимита</string>
     <string name="parent_remaining">осталось %s</string>
+    <string name="limited_by_parent_category">раньше кончится «%s»</string>
     <string name="parent_used_of">%1$s из %2$s</string>
     <string name="parent_used_today">сегодня %s</string>
     <string name="parent_close_until_morning">Закрыть до утра</string>

@@ -322,15 +322,16 @@ class ChildApiOverLogic(private val logic: AppLogic) : ChildApi {
         val appsByCategory = user.categoryApps.groupBy({ it.categoryId }, { it.appSpecifier.packageName })
 
         val categories = user.sortedCategories().map { (_, category) ->
-            val handling = cache.get(category.category.id)
+            val chain = CategoryChain(user, category.category.id, cache)
 
             CategoryToday(
                 title = category.category.title,
-                remaining = handling.remainingTime?.includingExtraTime,
-                closedNow = handling.shouldBlockActivities,
+                remaining = chain.remaining,
+                closedNow = chain.closedNow,
                 apps = appsByCategory[category.category.id].orEmpty().distinct()
                     .mapNotNull { packageName -> logic.platformIntegration.getLocalAppTitle(packageName)?.let { App(packageName, it) } },
                 week = limits(category, time.timeInMillis, user.timeZone).week,
+                limitedBy = chain.limitedBy,
             )
         }
         val nextMode = user.categories

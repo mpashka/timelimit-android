@@ -185,7 +185,7 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
         val sorted = data.sortedCategories()
         val ownTime = sorted.map { (depth, category) ->
             parentCategory(category, depth, category.category.parentCategoryId.takeIf { data.categoryById.containsKey(it) },
-                cache, todayEpoch, today, nowMinute, minuteStart, now)
+                CategoryChain(data, category.category.id, cache), todayEpoch, today, nowMinute, minuteStart, now)
         }
         val categoryRefs = ownTime.map { it.ref }
 
@@ -325,10 +325,9 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
 
     // @tag:category-limits
     private fun parentCategory(
-        category: CategoryRelatedData, depth: Int, parentId: String?, cache: CategoryHandlingCache,
+        category: CategoryRelatedData, depth: Int, parentId: String?, chain: CategoryChain,
         todayEpoch: Int, today: LocalDate, nowMinute: Int, minuteStart: Long, now: Long,
     ): ParentCategory {
-        val handling = cache.get(category.category.id)
         val blocked = Schedules.blockedMinutes(category)
         val limits = CategoryLimits(category.rules, category.usedTimes, DateInTimezone.newInstance(today), now)
         val tempBlocked = category.category.temporarilyBlocked &&
@@ -338,7 +337,7 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
             ref = CategoryRef(category.category.id, category.category.title),
             depth = depth,
             parentId = parentId,
-            remaining = handling.remainingTime?.includingExtraTime,
+            remaining = chain.remaining,
             usedToday = category.usedTimes.filter { it.dayOfEpoch == todayEpoch && it.startTimeOfDay == 0 && it.endTimeOfDay == 24 * 60 - 1 }
                 .sumOf { it.usedMillis },
             limit = limits.dayLimit,
@@ -347,6 +346,7 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
             closedByParentUntil = category.category.temporarilyBlockedEndTime.takeIf { tempBlocked && it != 0L },
             closedByParent = tempBlocked,
             allowedUntil = category.category.disableLimitsUntil.takeIf { it > now },
+            limitedBy = chain.limitedBy,
         )
     }
 

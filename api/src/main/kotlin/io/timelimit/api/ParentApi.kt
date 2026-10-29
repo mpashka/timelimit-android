@@ -129,6 +129,8 @@ data class ParentCategory(
     val closedByParentUntil: Long?,
     val closedByParent: Boolean,
     val allowedUntil: Long?,
+    /** the parent category that runs out first: [remaining] is its time */
+    val limitedBy: String? = null,
 )
 
 data class ParentRequest(

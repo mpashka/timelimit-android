@@ -266,6 +266,7 @@ fun CategoryCard(category: ParentCategory, child: ChildHome, api: ParentApi, act
             if (category.usedToday > 0) Text(stringResource(R.string.parent_used_today, formatDuration(category.usedToday)), color = colors.secondary, fontSize = 13.sp)
         }
         category.week?.let { WeekLine(it, 13.sp) }
+        category.limitedBy?.let { Text(stringResource(R.string.limited_by_parent_category, it), color = colors.secondary, fontSize = 13.sp) }
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             listOf(15, 30, 60).forEach { minutes ->
                 Chip("+$minutes") { actions(added.format(category.ref.title, minutes)) { api.addTime(category.ref.id, minutes) } }

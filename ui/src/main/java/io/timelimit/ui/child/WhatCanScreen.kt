@@ -98,6 +98,9 @@ private fun CategoryCard(category: CategoryToday) {
         Column(Modifier.weight(1f)) {
             Text(category.title, color = colors.text, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
             category.week?.let { WeekLine(it, 16.sp) }
+            category.limitedBy?.takeUnless { category.closedNow }?.let {
+                Text(stringResource(R.string.limited_by_parent_category, it), color = colors.secondary, fontSize = 16.sp)
+            }
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 category.apps.take(8).forEach { AppIcon(it.packageName, it.title, 32.dp) }
