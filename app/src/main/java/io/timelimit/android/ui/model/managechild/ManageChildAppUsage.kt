@@ -41,7 +41,7 @@ object ManageChildAppUsage {
     const val MAX_DAYS_AGO = 6
     private const val REFRESH_INTERVAL = 60 * 1000L
 
-    enum class Counting { Counted, NoActiveRules, TemporarilyAllowed, Whitelisted, NoCategory }
+    enum class Counting { Counted, LimitsLifted, TemporarilyAllowed, Whitelisted, NoCategory }
 
     data class Item(
         val packageName: String,
@@ -133,7 +133,7 @@ object ManageChildAppUsage {
                             currentNetworkId = null,
                             hasPremiumOrLocalMode = true
                         ).shouldCountTime
-                    }) Counting.Counted else Counting.NoActiveRules
+                    }) Counting.Counted else Counting.LimitsLifted
                     else -> Counting.NoCategory
                 }
 

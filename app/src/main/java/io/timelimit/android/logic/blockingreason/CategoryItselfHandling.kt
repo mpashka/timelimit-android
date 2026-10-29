@@ -221,7 +221,10 @@ data class CategoryItselfHandling (
             val missingNetworkTime = !shouldTrustTimeTemporarily &&
                     (missingNetworkTimeForDisableTempBlocking || missingNetworkTimeForBlockedTimeAreas || missingNetworkTimeForRules)
 
-            val shouldCountTime = regularRelatedRules.isNotEmpty()
+            // @tag:category-time
+            // the parent sees the time of a category without a rule for now too; a rule reads only the
+            // used time of its own days and hours, so this does not shorten any limit
+            val shouldCountTime = !areLimitsTemporarilyDisabled
             val shouldCountExtraTime = remainingTime?.usingExtraTime == true
             val sessionDurationSlotsToCount = if (remainingSessionDuration != null && remainingSessionDuration <= 0)
                 emptySet()

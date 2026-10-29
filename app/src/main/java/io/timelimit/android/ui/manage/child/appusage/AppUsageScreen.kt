@@ -98,7 +98,7 @@ fun AppUsageScreen(content: ManageChildAppUsage.Screen, modifier: Modifier = Mod
                         item.categoryTitle,
                         stringResource(when (item.counting) {
                             ManageChildAppUsage.Counting.Counted -> R.string.app_usage_counted
-                            ManageChildAppUsage.Counting.NoActiveRules -> R.string.app_usage_not_counted_no_rules
+                            ManageChildAppUsage.Counting.LimitsLifted -> R.string.app_usage_not_counted_limits_lifted
                             ManageChildAppUsage.Counting.TemporarilyAllowed -> R.string.app_usage_not_counted_temporarily_allowed
                             ManageChildAppUsage.Counting.Whitelisted -> R.string.app_usage_not_counted_whitelisted
                             ManageChildAppUsage.Counting.NoCategory -> R.string.app_usage_no_category

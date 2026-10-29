@@ -1924,7 +1924,7 @@
     <string name="app_usage_previous_day">Previous day</string>
     <string name="app_usage_next_day">Next day</string>
     <string name="app_usage_counted">time is counted</string>
-    <string name="app_usage_not_counted_no_rules">time is not counted: the category has no active limit rule</string>
+    <string name="app_usage_not_counted_limits_lifted">time is not counted: the limits of the category are lifted</string>
     <string name="app_usage_not_counted_temporarily_allowed">time is not counted: temporarily allowed</string>
     <string name="app_usage_not_counted_whitelisted">time is not counted: system app exception</string>
     <string name="app_usage_no_category">no category</string>
