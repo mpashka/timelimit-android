@@ -34,11 +34,13 @@ import androidx.compose.material.TopAppBar
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.TabletAndroid
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -64,7 +66,11 @@ import io.timelimit.api.ParentCodeNow
 import io.timelimit.ui.R
 import io.timelimit.ui.child.ChildTheme
 import io.timelimit.ui.child.LocalChildColors
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+/** The code is a secret: shown this long, it goes away even if the parent forgot it on the screen. */
+private const val CODE_SHOWN_MS = 60_000L
 
 enum class ParentTab(val title: Int, val icon: ImageVector) {
     Today(R.string.parent_tab_today, Icons.Default.Home),
@@ -88,6 +94,7 @@ fun ParentScreen(api: ParentApi, startOnRequests: Boolean, openOldInterface: () 
     var tab by rememberSaveable { mutableStateOf(ParentTab.Today) }
     var requestsOpen by rememberSaveable { mutableStateOf(startOnRequests) }
     var openApp by rememberSaveable { mutableStateOf<String?>(null) }
+    var codeShown by remember { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val undoLabel = stringResource(R.string.parent_undo)
@@ -109,7 +116,11 @@ fun ParentScreen(api: ParentApi, startOnRequests: Boolean, openOldInterface: () 
 
         // header, content, bottom bar stacked in a column: the scrolled content ends where the bar starts
         Column(Modifier.fillMaxSize().background(colors.ground).safeDrawingPadding()) {
-            Header(child, home?.children.orEmpty(), api::selectChild, code, child?.requests?.size ?: 0, onBell = { requestsOpen = !requestsOpen; openApp = null })
+            Header(
+                child, home?.children.orEmpty(), api::selectChild, code, child?.requests?.size ?: 0,
+                codeShown = codeShown, showCode = { codeShown = it },
+                onBell = { requestsOpen = !requestsOpen; openApp = null; codeShown = false }
+            )
 
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 // one column of phone width in the middle of a wide screen, so a name and its time stay together
@@ -126,10 +137,10 @@ fun ParentScreen(api: ParentApi, startOnRequests: Boolean, openOldInterface: () 
                             requestsOpen -> RequestsScreen(child, api, actions)
                             openApp != null -> AppCard(child, openApp!!, api, actions, onBack = { openApp = null })
                             tab == ParentTab.Today -> {
-                                TodayScreen(child, api, actions, onApp = { openApp = it }, onTablets = { tab = ParentTab.Tablets })
+                                TodayScreen(child, api, actions, onApp = { openApp = it; codeShown = false }, onTablets = { tab = ParentTab.Tablets })
                                 TextButton(onClick = openOldInterface) { Text(stringResource(R.string.parent_open_old)) }
                             }
-                            tab == ParentTab.Apps -> AppsScreen(child, api, actions, onApp = { openApp = it })
+                            tab == ParentTab.Apps -> AppsScreen(child, api, actions, onApp = { openApp = it; codeShown = false })
                             tab == ParentTab.Tablets -> TabletsScreen(child)
                             tab == ParentTab.Modes -> ModesScreen(child, api, actions)
                             tab == ParentTab.Sites -> SitesScreen(child, api, actions)
@@ -144,7 +155,7 @@ fun ParentScreen(api: ParentApi, startOnRequests: Boolean, openOldInterface: () 
                 ParentTab.entries.forEach { item ->
                     BottomNavigationItem(
                         selected = tab == item && !requestsOpen && openApp == null,
-                        onClick = { tab = item; requestsOpen = false; openApp = null },
+                        onClick = { tab = item; requestsOpen = false; openApp = null; codeShown = false },
                         icon = { Icon(item.icon, contentDescription = null) },
                         label = { Text(stringResource(item.title), fontSize = 11.sp) }
                     )
@@ -155,9 +166,11 @@ fun ParentScreen(api: ParentApi, startOnRequests: Boolean, openOldInterface: () 
 }
 
 @Composable
-private fun Header(child: ChildHome?, children: List<ChildRef>, select: (String) -> Unit, code: ParentCodeNow?, waiting: Int, onBell: () -> Unit) {
+private fun Header(
+    child: ChildHome?, children: List<ChildRef>, select: (String) -> Unit, code: ParentCodeNow?, waiting: Int,
+    codeShown: Boolean, showCode: (Boolean) -> Unit, onBell: () -> Unit,
+) {
     val colors = LocalChildColors.current
-    var showCode by remember { mutableStateOf(false) }
     var choosing by remember { mutableStateOf(false) }
 
     TopAppBar(backgroundColor = colors.surface, contentColor = colors.text) {
@@ -178,12 +191,7 @@ private fun Header(child: ChildHome?, children: List<ChildRef>, select: (String)
                 }
             }
 
-            if (code != null) {
-                if (showCode) Text(
-                    code.code.chunked(3).joinToString(" "), fontSize = 20.sp, fontWeight = FontWeight.Bold,
-                    modifier = Modifier.clickable { showCode = false }
-                ) else TextButton(onClick = { showCode = true }) { Text(stringResource(R.string.parent_code_button)) }
-            }
+            if (code != null) ParentCode(code, codeShown, showCode)
 
             IconButton(onClick = onBell) {
                 Box {
@@ -193,6 +201,27 @@ private fun Header(child: ChildHome?, children: List<ChildRef>, select: (String)
                         contentAlignment = Alignment.Center
                     ) { Text(waiting.toString(), color = Color.White, fontSize = 10.sp) }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * The parent's code (`specification/ui-contract.md`, «Код родителя»): a key beside the bell, and no
+ * digits at rest — the child is nearby and looks. Open, it closes by itself after a minute, by a tap
+ * on the digits, by a tap past them and when the screen changes; the digits shown are the code of now.
+ */
+@Composable
+private fun ParentCode(code: ParentCodeNow, shown: Boolean, show: (Boolean) -> Unit) {
+    if (shown) LaunchedEffect(Unit) { delay(CODE_SHOWN_MS); show(false) }
+
+    Box {
+        IconButton(onClick = { show(true) }) {
+            Icon(Icons.Default.Key, contentDescription = stringResource(R.string.parent_code))
+        }
+        DropdownMenu(expanded = shown, onDismissRequest = { show(false) }) {
+            DropdownMenuItem(onClick = { show(false) }) {
+                Text(code.code.chunked(3).joinToString(" "), fontSize = 20.sp, fontWeight = FontWeight.Bold)
             }
         }
     }

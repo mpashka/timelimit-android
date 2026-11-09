@@ -162,7 +162,7 @@
     <string name="parent_tab_sites">Сайты</string>
     <string name="parent_tab_tablets">Планшеты</string>
     <string name="parent_no_child">В семье пока нет ребёнка.</string>
-    <string name="parent_code_button">код</string>
+    <string name="parent_code">Код родителя</string>
     <string name="parent_requests">Просьбы</string>
     <string name="parent_open_old">Старый интерфейс</string>
     <string name="parent_today">Сегодня</string>
