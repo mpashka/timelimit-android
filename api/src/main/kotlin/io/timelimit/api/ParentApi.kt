@@ -52,6 +52,10 @@ interface ParentApi {
     // @tag:app-allowance
     suspend fun allowApp(packageName: String, minutes: Int): Undo?
 
+    /** Takes the whole allowance of the app back, however much of it is left; [allowApp] only adds to it. */
+    // @tag:app-allowance
+    suspend fun removeAppAllowance(packageName: String): Undo?
+
     /** null — the mode is off. */
     // @tag:ban-schedule
     suspend fun setSchedule(kind: ModeKind, schedule: ScheduleSpec?): Undo?
@@ -102,6 +106,8 @@ data class ChildHome(
     val requests: List<ParentRequest>,
     val answeredToday: List<AnsweredLine>,
     val tablets: List<TabletLine>,
+    /** apps open over their limits right now, the nearest end first */
+    val allowances: List<AllowanceLine> = emptyList(),
     val schedules: List<ScheduleLine>,
     val otherBans: Int,
     /** null — the server does not keep a site filter */
@@ -132,6 +138,9 @@ data class AppTime(
 )
 
 data class AppRuleLine(val days: Int, val limitMinutes: Int)
+
+// @tag:app-allowance
+data class AllowanceLine(val app: App, val until: Long)
 
 data class NewAppLine(val app: App, val installedAt: Long, val tabletName: String?, val guessedCategory: CategoryRef?)
 

@@ -39,6 +39,7 @@ import io.timelimit.android.sync.network.api.GoneHttpError
 import io.timelimit.android.sync.network.api.NotFoundHttpError
 import io.timelimit.android.sync.network.api.TooManyRequestsHttpError
 import io.timelimit.android.sync.network.api.UnauthorizedHttpError
+import io.timelimit.api.AllowanceLine
 import io.timelimit.api.AnsweredLine
 import io.timelimit.android.sync.actions.RemoveCategoryAppsAction
 import io.timelimit.android.sync.actions.SetCategoryExtraTimeAction
@@ -342,6 +343,8 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
             requests = requests,
             answeredToday = answered,
             tablets = tablets,
+            allowances = child.appAllowances.filter { it.until > now }.sortedBy { it.until }
+                .map { AllowanceLine(app(it.packageName), it.until) },
             schedules = schedules,
             otherBans = bans.count { Schedules.kindOf(it.start, it.end) == null },
             sites = if (logic.database.config().getServerApiLevelSync() >= UpdateUserUrlFilterAction.MIN_SERVER_API_LEVEL)
@@ -527,6 +530,15 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
         val previous = data.user.appAllowances.filter { it.packageName == packageName }.maxOfOrNull { it.until } ?: 0
 
         dispatch(listOf(SetAppAllowanceAction(data.user.id, packageName, previous.coerceAtLeast(now()) + minutes * MINUTE)))
+        return undoWith(listOf(SetAppAllowanceAction(data.user.id, packageName, previous)))
+    }
+
+    // @tag:app-allowance
+    override suspend fun removeAppAllowance(packageName: String): Undo? {
+        val data = childData() ?: return null
+        val previous = data.user.appAllowances.filter { it.packageName == packageName }.maxOfOrNull { it.until } ?: 0
+
+        dispatch(listOf(SetAppAllowanceAction(data.user.id, packageName, 0)))
         return undoWith(listOf(SetAppAllowanceAction(data.user.id, packageName, previous)))
     }
 

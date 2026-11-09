@@ -236,6 +236,9 @@
     <string name="parent_own_limit">Свой лимит</string>
     <string name="parent_own_limit_inside">внутри лимита категории %s</string>
     <string name="parent_no">нет</string>
+    <string name="parent_allowances">Разрешено поверх лимитов</string>
+    <string name="parent_allowance_remove">снять</string>
+    <string name="parent_allowance_removed">«%s»: разрешение снято</string>
     <string name="parent_tablets_button">Планшеты · %d</string>
     <string name="parent_today_on_tablet">Сегодня на «%s»</string>
     <string name="parent_only_tablet">Только «%s»</string>

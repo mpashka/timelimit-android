@@ -132,6 +132,7 @@ fun TodayScreen(child: ChildHome, api: ParentApi, actions: ParentActions, onApp:
     chosen?.let { Chip(stringResource(R.string.parent_only_tablet, it.name) + " ✕") { tablet = null } }
 
     ModeCard(child, api, actions)
+    if (child.allowances.isNotEmpty()) AllowanceCard(child, api, actions)
     child.newApps.forEach { NewAppCard(it, child, api, actions) }
 
     // the chosen tab outlives the app, as homeTab in the web console's localStorage
@@ -175,6 +176,31 @@ private fun ModeCard(child: ChildHome, api: ParentApi, actions: ParentActions) {
                 stringResource(R.string.parent_until_morning) to child.morning,
             ).forEach { (label, until) ->
                 Chip(label) { actions(closedAll.format(formatClock(until))) { api.closeAll(until) } }
+            }
+        }
+    }
+}
+
+/** What is open over its limits right now, and the way to take it back before the time is out. */
+// @tag:app-allowance
+@Composable
+private fun AllowanceCard(child: ChildHome, api: ParentApi, actions: ParentActions) {
+    val colors = LocalChildColors.current
+    val removed = stringResource(R.string.parent_allowance_removed)
+
+    Card {
+        Text(stringResource(R.string.parent_allowances), color = colors.text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+        child.allowances.forEach { line ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                AppIcon(line.app.packageName, line.app.title, 24.dp)
+                Spacer(Modifier.width(8.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(line.app.title, color = colors.text, fontSize = 15.sp)
+                    Text(stringResource(R.string.parent_allowed_until, formatClock(line.until)), color = colors.secondary, fontSize = 13.sp)
+                }
+                Chip(stringResource(R.string.parent_allowance_remove)) {
+                    actions(removed.format(line.app.title)) { api.removeAppAllowance(line.app.packageName) }
+                }
             }
         }
     }
