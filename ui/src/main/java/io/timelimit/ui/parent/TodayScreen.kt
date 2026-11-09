@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.LinearProgressIndicator
+import androidx.compose.material.Tab
+import androidx.compose.material.TabRow
 import androidx.compose.material.OutlinedButton
 import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.TextButton
@@ -23,15 +25,18 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.content.Context
 import io.timelimit.api.AppTime
 import io.timelimit.api.AppUsage
 import io.timelimit.api.ChildHome
@@ -47,6 +52,10 @@ import io.timelimit.ui.child.formatDuration
 
 private const val MINUTE = 60_000L
 private const val MAX_CATEGORY_TITLE = 50
+/** Less than this a day is noise: such rows wait behind «Ещё N — меньше минуты». */
+private const val NOTICEABLE_MS = MINUTE
+private const val PREFS = "parent_ui"
+private const val PREF_CATEGORIES_TAB = "home_categories_tab"
 
 @Composable
 fun Card(content: @Composable ColumnScope.() -> Unit) {
@@ -104,10 +113,20 @@ fun TodayScreen(child: ChildHome, api: ParentApi, actions: ParentActions, onApp:
     }
 
     ModeCard(child, api, actions)
-    AppsSection(child, api, actions, onApp)
+    child.newApps.forEach { NewAppCard(it, child, api, actions) }
 
-    SectionTitle(stringResource(R.string.parent_categories))
-    child.categories.forEach { CategoryCard(it, child, api, actions) }
+    // the chosen tab outlives the app, as homeTab in the web console's localStorage
+    val prefs = LocalContext.current.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    var categoriesTab by remember { mutableStateOf(prefs.getBoolean(PREF_CATEGORIES_TAB, false)) }
+    TabRow(selectedTabIndex = if (categoriesTab) 1 else 0, backgroundColor = colors.surface, contentColor = colors.action) {
+        listOf(R.string.parent_tab_apps, R.string.parent_categories).forEachIndexed { index, title ->
+            Tab(selected = categoriesTab == (index == 1), onClick = {
+                categoriesTab = index == 1
+                prefs.edit().putBoolean(PREF_CATEGORIES_TAB, categoriesTab).apply()
+            }, text = { Text(stringResource(title)) })
+        }
+    }
+    if (categoriesTab) child.categories.forEach { CategoryCard(it, child, api, actions) } else AppList(child, onApp)
 
     SectionTitle(stringResource(R.string.parent_tab_tablets))
     TabletsScreen(child)
@@ -141,21 +160,28 @@ private fun ModeCard(child: ChildHome, api: ParentApi, actions: ParentActions) {
     }
 }
 
+/** Today's apps by time, the noticeable ones; the rest behind one line that says how many and why hidden. */
 @Composable
-private fun AppsSection(child: ChildHome, api: ParentApi, actions: ParentActions, onApp: (String) -> Unit) {
+private fun AppList(child: ChildHome, onApp: (String) -> Unit) {
     val colors = LocalChildColors.current
-    var week by rememberSaveable { mutableStateOf(false) }
-
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        SectionTitle(stringResource(R.string.parent_tab_apps))
-        Spacer(Modifier.weight(1f))
-        Chip(stringResource(if (week) R.string.parent_week else R.string.parent_today_short)) { week = !week }
-    }
-
-    child.newApps.forEach { NewAppCard(it, child, api, actions) }
+    var all by rememberSaveable { mutableStateOf(false) }
 
     when (val usage = child.usage) {
-        is AppUsage.Known -> (if (week) usage.week else usage.today).take(10).forEach { AppRow(it, it.category?.title) { onApp(it.app.packageName) } }
+        is AppUsage.Known -> {
+            val apps = usage.today.filter { it.ms > 0 }.sortedByDescending { it.ms }
+            val shown = if (all) apps else apps.filter { it.ms >= NOTICEABLE_MS }
+            val max = apps.firstOrNull()?.ms ?: 0
+
+            if (apps.isEmpty()) Text(stringResource(R.string.parent_no_apps_today), color = colors.secondary, fontSize = 14.sp)
+            shown.forEach { line ->
+                val note = listOfNotNull(line.category?.title, line.rule?.let { ruleText(it) }).joinToString(" · ")
+                AppRow(line, note, max) { onApp(line.app.packageName) }
+            }
+            if (shown.size < apps.size) Row(Modifier.fillMaxWidth().clickable { all = true }.padding(vertical = 8.dp)) {
+                Text(stringResource(R.string.parent_more_under_minute, apps.size - shown.size), color = colors.secondary, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.parent_show), color = colors.action, fontSize = 14.sp)
+            }
+        }
         AppUsage.Loading -> Text(stringResource(R.string.parent_usage_loading), color = colors.secondary, fontSize = 14.sp)
         AppUsage.NeedsSignIn -> Text(stringResource(R.string.parent_usage_needs_sign_in), color = colors.secondary, fontSize = 14.sp)
         is AppUsage.Failed -> Text(usageFailure(usage), color = colors.secondary, fontSize = 14.sp)
@@ -163,7 +189,7 @@ private fun AppsSection(child: ChildHome, api: ParentApi, actions: ParentActions
 }
 
 @Composable
-fun AppRow(line: AppTime, note: String?, onClick: () -> Unit) {
+fun AppRow(line: AppTime, note: String?, max: Long = 0, onClick: () -> Unit) {
     val colors = LocalChildColors.current
 
     Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -172,6 +198,11 @@ fun AppRow(line: AppTime, note: String?, onClick: () -> Unit) {
         Column(Modifier.weight(1f)) {
             Text(line.app.title, color = colors.text, fontSize = 16.sp)
             note?.takeIf { it.isNotEmpty() }?.let { Text(it, color = colors.secondary, fontSize = 13.sp) }
+            // the bar is relative to the longest app of the day, as in the web console
+            if (max > 0) LinearProgressIndicator(
+                progress = line.ms.toFloat() / max, color = colors.action, backgroundColor = colors.ground,
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
+            )
         }
         Text(formatDuration(line.ms), color = colors.text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
     }

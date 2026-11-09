@@ -174,8 +174,9 @@
     <string name="parent_close_all">Закрыть всё:</string>
     <string name="parent_until_morning">до утра</string>
     <string name="parent_closed_all_until">Всё закрыто до %s</string>
-    <string name="parent_week">Неделя</string>
-    <string name="parent_today_short">Сегодня</string>
+    <string name="parent_more_under_minute">Ещё %d — меньше минуты</string>
+    <string name="parent_show">показать</string>
+    <string name="parent_no_apps_today">Сегодня приложения не открывали.</string>
     <string name="parent_new">новое</string>
     <string name="parent_installed_at">поставлено в %s</string>
     <string name="parent_closed_for_now">пока закрыто</string>
