@@ -95,6 +95,10 @@ class DummyServerApi: ServerApi {
         throw IOException()
     }
 
+    override suspend fun getAppIcons(deviceAuthToken: String, parentUserId: String, parentPasswordSecondHash: String, packageNames: List<String>): List<AppIconRow> {
+        throw IOException()
+    }
+
     override suspend fun removeDevice(deviceAuthToken: String, parentUserId: String, parentPasswordSecondHash: String, deviceId: String) {
         throw IOException()
     }

@@ -57,6 +57,9 @@ interface ServerApi {
     suspend fun isDeviceRemoved(deviceAuthToken: String): Boolean
     // @tag:app-usage
     suspend fun getAppUsage(deviceAuthToken: String, parentUserId: String, parentPasswordSecondHash: String, userId: String, fromDay: Int, toDay: Int): List<AppUsageRow>
+    /** docs/specification/protocol-new-ui.md, section 9: only packages the server has an icon of, up to 500 asked at once. */
+    // @tag:app-icon
+    suspend fun getAppIcons(deviceAuthToken: String, parentUserId: String, parentPasswordSecondHash: String, packageNames: List<String>): List<AppIconRow>
     suspend fun createIdentityToken(deviceAuthToken: String, parentUserId: String, parentPasswordSecondHash: String): String
     suspend fun requestAccountDeletion(deviceAuthToken: String, mailAuthTokens: List<String>)
 }
@@ -68,3 +71,7 @@ class MailServerTemporarilyBlacklistedException: RuntimeException()
 
 // @tag:app-usage
 data class AppUsageRow(val deviceId: String, val day: Int, val packageName: String, val ms: Long)
+
+/** [icon] — PNG of the launcher icon as a tablet drew it. */
+// @tag:app-icon
+class AppIconRow(val packageName: String, val title: String, val icon: ByteArray)

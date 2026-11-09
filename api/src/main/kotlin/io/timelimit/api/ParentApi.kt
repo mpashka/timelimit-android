@@ -12,6 +12,13 @@ interface ParentApi {
 
     fun selectChild(childId: String)
 
+    /**
+     * Launcher icons (PNG) of the child's apps this phone does not have, as the tablets sent them; filled in as
+     * [home] shows the apps. An app missing here is drawn by its letter.
+     */
+    // @tag:app-icon
+    val appIcons: Flow<Map<String, ByteArray>>
+
     /** The code of docs/specification/protocol-new-ui.md, section 7; null — the server gave no secret yet. */
     // @tag:parent-code
     val parentCode: Flow<ParentCodeNow?>

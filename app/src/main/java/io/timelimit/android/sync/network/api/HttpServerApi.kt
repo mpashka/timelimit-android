@@ -19,6 +19,7 @@ import android.os.Build.VERSION
 import android.os.Build.VERSION_CODES
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
+import android.util.Base64
 import android.util.JsonReader
 import android.util.JsonWriter
 import android.util.Log
@@ -621,6 +622,56 @@ class HttpServerApi(private val endpointWithoutSlashAtEnd: String): ServerApi {
                         reader.endObject()
 
                         result.add(AppUsageRow(deviceId, day, packageName, ms))
+                    }
+                    reader.endArray()
+                }
+                reader.endObject()
+
+                result
+            }
+        }
+    }
+
+    // @tag:app-icon
+    override suspend fun getAppIcons(deviceAuthToken: String, parentUserId: String, parentPasswordSecondHash: String, packageNames: List<String>): List<AppIconRow> {
+        postJsonRequest("parent/get-app-icons") { writer ->
+            writer.beginObject()
+            writer.name(DEVICE_AUTH_TOKEN).value(deviceAuthToken)
+            writer.name(PARENT_USER_ID).value(parentUserId)
+            writer.name(PARENT_PASSWORD_SECOND_HASH).value(parentPasswordSecondHash)
+            writer.name("packageNames").beginArray()
+            packageNames.forEach { writer.value(it) }
+            writer.endArray()
+            writer.endObject()
+        }.use { response ->
+            response.assertSuccess()
+
+            return Threads.network.executeAndWait {
+                val reader = JsonReader(response.body!!.charStream())
+                val result = mutableListOf<AppIconRow>()
+
+                reader.beginObject()
+                while (reader.hasNext()) {
+                    if (reader.nextName() != "items") { reader.skipValue(); continue }
+
+                    reader.beginArray()
+                    while (reader.hasNext()) {
+                        var packageName = ""; var title = ""; var icon = ""
+
+                        reader.beginObject()
+                        while (reader.hasNext()) {
+                            when (reader.nextName()) {
+                                "packageName" -> packageName = reader.nextString()
+                                "title" -> title = reader.nextString()
+                                "icon" -> icon = reader.nextString()
+                                else -> reader.skipValue()
+                            }
+                        }
+                        reader.endObject()
+
+                        // the server checks the PNG signature of what it keeps, so a bad row is skipped, not fatal
+                        runCatching { Base64.decode(icon, Base64.DEFAULT) }.getOrNull()
+                            ?.let { result.add(AppIconRow(packageName, title, it)) }
                     }
                     reader.endArray()
                 }

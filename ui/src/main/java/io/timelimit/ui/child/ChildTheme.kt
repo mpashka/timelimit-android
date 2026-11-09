@@ -3,6 +3,7 @@ package io.timelimit.ui.child
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -17,6 +18,7 @@ import androidx.compose.material.lightColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
@@ -108,7 +110,10 @@ fun formatDay(time: Long, now: Long): String {
 @Composable
 fun AppIcon(packageName: String, title: String, size: Dp = 48.dp) {
     val context = LocalContext.current
-    val bitmap = remember(packageName) { loadIcon(context, packageName) }
+    val remote = LocalAppIcons.current[packageName]
+    val bitmap = remember(packageName, remote) {
+        loadIcon(context, packageName) ?: remote?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }
+    }
     val shape = RoundedCornerShape(size / 4)
 
     if (bitmap != null) {
@@ -122,6 +127,10 @@ fun AppIcon(packageName: String, title: String, size: Dp = 48.dp) {
         }
     }
 }
+
+/** Icons of apps this device does not have, as the child's tablets sent them (PNG bytes by package). */
+// @tag:app-icon
+val LocalAppIcons = compositionLocalOf<Map<String, ByteArray>> { emptyMap() }
 
 private fun loadIcon(context: Context, packageName: String): Bitmap? = try {
     val drawable = context.packageManager.getApplicationIcon(packageName)

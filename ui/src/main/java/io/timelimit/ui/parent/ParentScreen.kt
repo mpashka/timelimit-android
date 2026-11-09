@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.TabletAndroid
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -65,6 +66,7 @@ import io.timelimit.api.ParentApi
 import io.timelimit.api.ParentCodeNow
 import io.timelimit.ui.R
 import io.timelimit.ui.child.ChildTheme
+import io.timelimit.ui.child.LocalAppIcons
 import io.timelimit.ui.child.LocalChildColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -91,6 +93,7 @@ class ParentActions(private val run: (String, suspend () -> Undo?) -> Unit) {
 fun ParentScreen(api: ParentApi, startOnRequests: Boolean, openOldInterface: () -> Unit, signIn: () -> Unit) {
     val home by api.home.collectAsState(initial = null)
     val code by api.parentCode.collectAsState(initial = null)
+    val icons by api.appIcons.collectAsState(initial = emptyMap())
     var tab by rememberSaveable { mutableStateOf(ParentTab.Today) }
     var requestsOpen by rememberSaveable { mutableStateOf(startOnRequests) }
     var openApp by rememberSaveable { mutableStateOf<String?>(null) }
@@ -110,55 +113,57 @@ fun ParentScreen(api: ParentApi, startOnRequests: Boolean, openOldInterface: () 
         }
     }
 
-    ChildTheme {
-        val colors = LocalChildColors.current
-        val child = home?.child
+    CompositionLocalProvider(LocalAppIcons provides icons) {
+        ChildTheme {
+            val colors = LocalChildColors.current
+            val child = home?.child
 
-        // header, content, bottom bar stacked in a column: the scrolled content ends where the bar starts
-        Column(Modifier.fillMaxSize().background(colors.ground).safeDrawingPadding()) {
-            Header(
-                child, home?.children.orEmpty(), api::selectChild, code, child?.requests?.size ?: 0,
-                codeShown = codeShown, showCode = { codeShown = it },
-                onBell = { requestsOpen = !requestsOpen; openApp = null; codeShown = false }
-            )
+            // header, content, bottom bar stacked in a column: the scrolled content ends where the bar starts
+            Column(Modifier.fillMaxSize().background(colors.ground).safeDrawingPadding()) {
+                Header(
+                    child, home?.children.orEmpty(), api::selectChild, code, child?.requests?.size ?: 0,
+                    codeShown = codeShown, showCode = { codeShown = it },
+                    onBell = { requestsOpen = !requestsOpen; openApp = null; codeShown = false }
+                )
 
-            Box(Modifier.weight(1f).fillMaxWidth()) {
-                // one column of phone width in the middle of a wide screen, so a name and its time stay together
-                Box(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), contentAlignment = Alignment.TopCenter) {
-                    Column(
-                        Modifier.widthIn(max = 720.dp).fillMaxWidth().padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        home?.cannotAct?.let { CannotActCard(it, signIn) }
+                Box(Modifier.weight(1f).fillMaxWidth()) {
+                    // one column of phone width in the middle of a wide screen, so a name and its time stay together
+                    Box(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), contentAlignment = Alignment.TopCenter) {
+                        Column(
+                            Modifier.widthIn(max = 720.dp).fillMaxWidth().padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            home?.cannotAct?.let { CannotActCard(it, signIn) }
 
-                        when {
-                            home == null -> {}
-                            child == null -> Text(stringResource(R.string.parent_no_child), color = colors.secondary)
-                            requestsOpen -> RequestsScreen(child, api, actions)
-                            openApp != null -> AppCard(child, openApp!!, api, actions, onBack = { openApp = null })
-                            tab == ParentTab.Today -> {
-                                TodayScreen(child, api, actions, onApp = { openApp = it; codeShown = false }, onTablets = { tab = ParentTab.Tablets })
-                                TextButton(onClick = openOldInterface) { Text(stringResource(R.string.parent_open_old)) }
+                            when {
+                                home == null -> {}
+                                child == null -> Text(stringResource(R.string.parent_no_child), color = colors.secondary)
+                                requestsOpen -> RequestsScreen(child, api, actions)
+                                openApp != null -> AppCard(child, openApp!!, api, actions, onBack = { openApp = null })
+                                tab == ParentTab.Today -> {
+                                    TodayScreen(child, api, actions, onApp = { openApp = it; codeShown = false }, onTablets = { tab = ParentTab.Tablets })
+                                    TextButton(onClick = openOldInterface) { Text(stringResource(R.string.parent_open_old)) }
+                                }
+                                tab == ParentTab.Apps -> AppsScreen(child, api, actions, onApp = { openApp = it; codeShown = false })
+                                tab == ParentTab.Tablets -> TabletsScreen(child)
+                                tab == ParentTab.Modes -> ModesScreen(child, api, actions)
+                                tab == ParentTab.Sites -> SitesScreen(child, api, actions)
                             }
-                            tab == ParentTab.Apps -> AppsScreen(child, api, actions, onApp = { openApp = it; codeShown = false })
-                            tab == ParentTab.Tablets -> TabletsScreen(child)
-                            tab == ParentTab.Modes -> ModesScreen(child, api, actions)
-                            tab == ParentTab.Sites -> SitesScreen(child, api, actions)
                         }
                     }
+
+                    SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
                 }
 
-                SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
-            }
-
-            BottomNavigation(backgroundColor = colors.surface, contentColor = colors.action) {
-                ParentTab.entries.forEach { item ->
-                    BottomNavigationItem(
-                        selected = tab == item && !requestsOpen && openApp == null,
-                        onClick = { tab = item; requestsOpen = false; openApp = null; codeShown = false },
-                        icon = { Icon(item.icon, contentDescription = null) },
-                        label = { Text(stringResource(item.title), fontSize = 11.sp) }
-                    )
+                BottomNavigation(backgroundColor = colors.surface, contentColor = colors.action) {
+                    ParentTab.entries.forEach { item ->
+                        BottomNavigationItem(
+                            selected = tab == item && !requestsOpen && openApp == null,
+                            onClick = { tab = item; requestsOpen = false; openApp = null; codeShown = false },
+                            icon = { Icon(item.icon, contentDescription = null) },
+                            label = { Text(stringResource(item.title), fontSize = 11.sp) }
+                        )
+                    }
                 }
             }
         }

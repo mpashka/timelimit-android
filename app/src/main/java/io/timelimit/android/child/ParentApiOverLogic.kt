@@ -1,6 +1,7 @@
 package io.timelimit.android.child
 
 import android.content.Context
+import android.content.pm.PackageManager
 import androidx.lifecycle.asFlow
 import io.timelimit.android.data.IdGenerator
 import io.timelimit.android.data.extensions.sortedCategories
@@ -31,6 +32,7 @@ import io.timelimit.android.sync.actions.UpdateCategoryTitleAction
 import io.timelimit.android.sync.actions.UpdateCategoryTemporarilyBlockedAction
 import io.timelimit.android.sync.actions.apply.ApplyActionParentDeviceAuthentication
 import io.timelimit.android.sync.actions.apply.ApplyActionUtil
+import io.timelimit.android.sync.network.api.AppIconRow
 import io.timelimit.android.sync.network.api.AppUsageRow
 import io.timelimit.android.sync.network.api.BadRequestHttpError
 import io.timelimit.android.sync.network.api.ConflictHttpError
@@ -76,6 +78,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.LocalDate
@@ -86,6 +89,7 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
         private const val MINUTE = 60_000L
         private const val ONLINE = 2 * MINUTE
         private const val USAGE_REFRESH = MINUTE
+        private const val ICONS_AT_ONCE = 500
 
         private var instance: ParentApiOverLogic? = null
 
@@ -108,6 +112,13 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
     private val refresh = MutableStateFlow(0)
     private val usage = MutableStateFlow<Triple<String, Long, Result<List<AppUsageRow>>>?>(null)
     private val selectedChild = MutableStateFlow<String?>(null)
+    // @tag:app-icon
+    private val icons = MutableStateFlow<Map<String, AppIconRow>>(emptyMap())
+    /** asked once with an answer: a package the server has no icon of is not asked again until the app restarts */
+    private val iconsAsked = mutableSetOf<String>()
+    private var iconsFailedAt = 0L
+
+    override val appIcons: Flow<Map<String, ByteArray>> = icons.map { rows -> rows.mapValues { it.value.icon } }
 
     override fun selectChild(childId: String) {
         selectedChild.value = childId
@@ -119,9 +130,9 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
         logic.database.device().getAllDevicesFlow(),
         logic.database.app().getAllApps().asFlow(),
         logic.deviceStates,
-        combine(tick, refresh, usage, selectedChild) { _, _, usage, selected -> usage to selected }
-    ) { users, devices, apps, states, (usage, selected) ->
-        computeHome(users, devices, apps.associate { it.packageName to it.title }, states, usage, selected)
+        combine(tick, refresh, usage, selectedChild, icons) { _, _, usage, selected, icons -> Triple(usage, selected, icons) }
+    ) { users, devices, apps, states, (usage, selected, icons) ->
+        computeHome(users, devices, apps.associate { it.packageName to it.title }, states, usage, selected, icons)
     }.distinctUntilChanged().flowOn(Dispatchers.IO)
 
     override val parentCode: Flow<ParentCodeNow?> = flow {
@@ -156,6 +167,40 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
         usage.value = Triple(childId, now(), result)
     }
 
+    /** Icons of [home]'s apps that are not installed here; a failed request is tried again after a minute. */
+    // @tag:app-icon
+    private suspend fun loadIcons(home: ChildHome, parentId: String) {
+        val missing = packagesOf(home).filterNot { it in iconsAsked || isInstalled(it) }
+        if (missing.isEmpty() || now() - iconsFailedAt < USAGE_REFRESH) return
+
+        val result = runCatching {
+            val server = logic.serverLogic.getServerConfigCoroutine()
+            missing.chunked(ICONS_AT_ONCE).flatMap { server.api.getAppIcons(server.deviceAuthToken, parentId, "device", it) }
+        }
+
+        result.onSuccess { rows ->
+            iconsAsked += missing
+            if (rows.isNotEmpty()) icons.value = icons.value + rows.associateBy { it.packageName }
+        }.onFailure { iconsFailedAt = now() }
+    }
+
+    private fun packagesOf(home: ChildHome): Set<String> = buildSet {
+        (home.usage as? AppUsage.Known)?.let { usage -> usage.week.forEach { add(it.app.packageName) } }
+        home.categories.forEach { category -> category.apps.forEach { add(it.app.packageName) } }
+        home.newApps.forEach { add(it.app.packageName) }
+        home.requests.forEach { add(it.app.packageName) }
+        home.answeredToday.forEach { add(it.app.packageName) }
+        home.allowances.forEach { add(it.app.packageName) }
+        home.tablets.forEach { tablet -> tablet.appNow?.let { add(it.packageName) } }
+    }
+
+    private fun isInstalled(packageName: String): Boolean = try {
+        logic.context.packageManager.getApplicationInfo(packageName, 0)
+        true
+    } catch (_: PackageManager.NameNotFoundException) {
+        false
+    }
+
     private suspend fun computeHome(
         users: List<User>,
         devices: List<Device>,
@@ -163,6 +208,7 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
         states: List<io.timelimit.android.data.model.DeviceState>,
         loaded: Triple<String, Long, Result<List<AppUsageRow>>>?,
         selected: String?,
+        remote: Map<String, AppIconRow>,
     ): ParentHome {
         val device = ownDevice(devices)
         val cannotAct = cannotAct(users, device)
@@ -180,7 +226,8 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
             loadUsage(child.id, device.currentUserId, todayEpoch)
         }
 
-        fun app(packageName: String) = App(packageName, titles[packageName] ?: child.newApps.find { it.packageName == packageName }?.title ?: packageName)
+        fun app(packageName: String) = App(packageName, titles[packageName] ?: child.newApps.find { it.packageName == packageName }?.title
+            ?: remote[packageName]?.title?.takeIf { it.isNotEmpty() } ?: packageName)
         fun tabletName(deviceId: String) = devices.find { it.id == deviceId }?.name
 
         val cache = CategoryHandlingCache().apply {
@@ -329,7 +376,7 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
             )
         }
 
-        return ParentHome(cannotAct, refs, ChildHome(
+        val home = ChildHome(
             id = child.id,
             name = child.name,
             now = now,
@@ -350,7 +397,11 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
             sites = if (logic.database.config().getServerApiLevelSync() >= UpdateUserUrlFilterAction.MIN_SERVER_API_LEVEL)
                 (child.urlFilter ?: UserUrlFilter(false, emptyList(), emptyList())).let { Sites(it.enabled, it.allow, it.block) }
             else null,
-        ))
+        )
+
+        if (device != null && cannotAct == null) loadIcons(home, device.currentUserId)
+
+        return ParentHome(cannotAct, refs, home)
     }
 
     // @tag:category-limits
