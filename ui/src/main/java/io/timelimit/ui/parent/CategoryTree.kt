@@ -36,9 +36,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.timelimit.api.AppTime
+import io.timelimit.api.AppUsage
 import io.timelimit.api.ChildHome
 import io.timelimit.api.ParentApi
 import io.timelimit.api.ParentCategory
+import io.timelimit.api.appsTimeOfCategory
 import io.timelimit.ui.R
 import io.timelimit.ui.child.LocalChildColors
 import io.timelimit.ui.child.WeekLine
@@ -56,15 +58,17 @@ private val LIMIT_PRESETS = listOf(30, 60, 90, 120)
  */
 // @tag:category-tree
 @Composable
-fun CategoryTree(child: ChildHome, api: ParentApi, actions: ParentActions, onApp: (String) -> Unit) {
+fun CategoryTree(child: ChildHome, api: ParentApi, actions: ParentActions, onApp: (String) -> Unit, tablet: String?) {
     val colors = LocalChildColors.current
     val categories = child.categories
     var open by rememberSaveable { mutableStateOf<String?>(null) }
+
+    if (categories.isEmpty()) return
+    val today = (child.usage as? AppUsage.Known)?.today.orEmpty()
     // categories come parent first, children right after it: the last of its siblings ends its branch
     val lastIds = categories.groupBy { it.parentId }.values.map { it.last().ref.id }.toSet()
     val byId = categories.associateBy { it.ref.id }
 
-    if (categories.isEmpty()) return
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.surface).padding(vertical = 4.dp)) {
         categories.forEach { category ->
             val id = category.ref.id
@@ -72,10 +76,14 @@ fun CategoryTree(child: ChildHome, api: ParentApi, actions: ParentActions, onApp
             val rails = generateSequence(category.parentId?.let { byId[it] }) { it.parentId?.let(byId::get) }
                 .filter { it.depth > 0 && it.ref.id !in lastIds }.map { it.depth }.toSet()
 
-            CategoryNode(category, child, api, actions, last = id in lastIds, rails = rails, open = open == id) {
+            // limits are the child's, not a tablet's: under the filter the row says the time on this tablet and no more
+            // @tag:tablet-filter
+            val onTablet = tablet?.let { appsTimeOfCategory(categories, id, today, it) }
+
+            CategoryNode(category, child, api, actions, last = id in lastIds, rails = rails, open = open == id, onTablet = onTablet) {
                 open = if (open == id) null else id
             }
-            if (open == id) CategoryApps(category, api, actions, onApp)
+            if (open == id) CategoryApps(category, api, actions, onApp, tablet)
         }
     }
 }
@@ -83,7 +91,7 @@ fun CategoryTree(child: ChildHome, api: ParentApi, actions: ParentActions, onApp
 @Composable
 private fun CategoryNode(
     category: ParentCategory, child: ChildHome, api: ParentApi, actions: ParentActions,
-    last: Boolean, rails: Set<Int>, open: Boolean, toggle: () -> Unit,
+    last: Boolean, rails: Set<Int>, open: Boolean, onTablet: Long?, toggle: () -> Unit,
 ) {
     val colors = LocalChildColors.current
     val line = colors.secondary.copy(alpha = 0.4f)
@@ -116,32 +124,45 @@ private fun CategoryNode(
         Spacer(Modifier.width(4.dp))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(category.ref.title, color = colors.text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-            category.limit?.let { limit ->
-                Text(stringResource(R.string.parent_used_of, formatDuration(category.usedToday), formatDuration(limit)), color = colors.secondary, fontSize = 13.sp)
-                LinearProgressIndicator(
-                    progress = (category.usedToday.toFloat() / limit).coerceIn(0f, 1f),
-                    color = colors.action, backgroundColor = colors.ground, modifier = Modifier.fillMaxWidth()
-                )
-            } ?: run {
-                if (category.usedToday > 0) Text(stringResource(R.string.parent_used_today, formatDuration(category.usedToday)), color = colors.secondary, fontSize = 13.sp)
+            if (onTablet != null) categoryClosedState(category)?.let { Text(it, color = categoryStateColor(category), fontSize = 13.sp) }
+            else {
+                CategoryDayLine(category)
+                category.week?.let { WeekLine(it, 13.sp) }
+                category.limitedBy?.let { Text(stringResource(R.string.limited_by_parent_category, it), color = colors.secondary, fontSize = 13.sp) }
             }
-            category.week?.let { WeekLine(it, 13.sp) }
-            category.limitedBy?.let { Text(stringResource(R.string.limited_by_parent_category, it), color = colors.secondary, fontSize = 13.sp) }
         }
         Spacer(Modifier.width(8.dp))
-        Text(categoryState(category), color = categoryStateColor(category), fontSize = 14.sp)
+        if (onTablet != null) Text(formatDuration(onTablet), color = colors.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        else Text(categoryState(category), color = categoryStateColor(category), fontSize = 14.sp)
         CategoryMenu(category, child, api, actions, onRename = { editing = true })
     }
 }
 
+/** Today against the day limit, with a bar; without a limit — the time alone, and nothing while it is zero. */
+@Composable
+private fun CategoryDayLine(category: ParentCategory) {
+    val colors = LocalChildColors.current
+    val limit = category.limit
+
+    if (limit == null) {
+        if (category.usedToday > 0) Text(stringResource(R.string.parent_used_today, formatDuration(category.usedToday)), color = colors.secondary, fontSize = 13.sp)
+        return
+    }
+    Text(stringResource(R.string.parent_used_of, formatDuration(category.usedToday), formatDuration(limit)), color = colors.secondary, fontSize = 13.sp)
+    LinearProgressIndicator(
+        progress = (category.usedToday.toFloat() / limit).coerceIn(0f, 1f),
+        color = colors.action, backgroundColor = colors.ground, modifier = Modifier.fillMaxWidth()
+    )
+}
+
 /** Inside an open category: its apps by time (the noticeable ones, «все» below) or all of them by name with the day limit. */
 @Composable
-private fun CategoryApps(category: ParentCategory, api: ParentApi, actions: ParentActions, onApp: (String) -> Unit) {
+private fun CategoryApps(category: ParentCategory, api: ParentApi, actions: ParentActions, onApp: (String) -> Unit, tablet: String?) {
     val colors = LocalChildColors.current
     var manage by rememberSaveable(category.ref.id) { mutableStateOf(false) }
     var all by rememberSaveable(category.ref.id) { mutableStateOf(false) }
     val collator = Collator.getInstance(Locale("ru"))
-    val apps = category.apps
+    val apps = category.apps.map { it.copy(ms = timeOn(it, tablet)) }
     val used = apps.filter { it.ms >= NOTICEABLE_MS }.sortedByDescending { it.ms }
     val listed = when {
         manage -> apps.sortedWith(compareBy(collator) { it.app.title })

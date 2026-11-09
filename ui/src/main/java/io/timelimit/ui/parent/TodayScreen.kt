@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -102,17 +101,35 @@ fun SectionTitle(text: String) {
 /** P1–P4, P6 of docs/specification/parent-ui.md. */
 // @tag:new-ui
 @Composable
-fun TodayScreen(child: ChildHome, api: ParentApi, actions: ParentActions, onApp: (String) -> Unit) {
+fun TodayScreen(child: ChildHome, api: ParentApi, actions: ParentActions, onApp: (String) -> Unit, onTablets: () -> Unit) {
     val colors = LocalChildColors.current
     val usage = child.usage
+    // one tablet chosen covers both tabs and the time above them, as in the web console
+    var tablet by rememberSaveable { mutableStateOf<String?>(null) }
+    var tabletsShown by rememberSaveable { mutableStateOf(false) }
+    // a tablet taken out of the family leaves no filter behind it: the chosen one is read through the list
+    val chosen = child.tablets.find { it.id == tablet }
 
     Card {
-        Text(stringResource(R.string.parent_today), color = colors.secondary)
-        if (usage is AppUsage.Known) {
-            Text(formatDuration(usage.today.sumOf { it.ms }), color = colors.text, fontSize = 32.sp, fontWeight = FontWeight.Bold)
-            Text(stringResource(R.string.parent_on_tablets, child.tablets.size), color = colors.secondary, fontSize = 14.sp)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    if (chosen == null) stringResource(R.string.parent_today) else stringResource(R.string.parent_today_on_tablet, chosen.name),
+                    color = colors.secondary
+                )
+                if (usage is AppUsage.Known) {
+                    Text(formatDuration(usage.today.sumOf { timeOn(it, chosen?.id) }), color = colors.text, fontSize = 32.sp, fontWeight = FontWeight.Bold)
+                    if (chosen == null) Text(stringResource(R.string.parent_on_tablets, child.tablets.size), color = colors.secondary, fontSize = 14.sp)
+                }
+            }
+            if (child.tablets.isNotEmpty()) TextButton(onClick = { tabletsShown = !tabletsShown }) {
+                Text(stringResource(R.string.parent_tablets_button, child.tablets.size) + if (tabletsShown) " ▴" else " ▾")
+            }
         }
     }
+    if (child.tablets.isEmpty()) NoTabletCard()
+    if (tabletsShown) TabletList(child, chosen?.id, { tablet = it }, onTablets)
+    chosen?.let { Chip(stringResource(R.string.parent_only_tablet, it.name) + " ✕") { tablet = null } }
 
     ModeCard(child, api, actions)
     child.newApps.forEach { NewAppCard(it, child, api, actions) }
@@ -128,11 +145,12 @@ fun TodayScreen(child: ChildHome, api: ParentApi, actions: ParentActions, onApp:
             }, text = { Text(stringResource(title)) })
         }
     }
-    if (categoriesTab) CategoryTree(child, api, actions, onApp) else AppList(child, api, actions, onApp)
-
-    SectionTitle(stringResource(R.string.parent_tab_tablets))
-    TabletsScreen(child)
+    if (categoriesTab) CategoryTree(child, api, actions, onApp, chosen?.id) else AppList(child, api, actions, onApp, chosen?.id)
 }
+
+/** The app's time on the chosen tablet, or on all of them when none is chosen. */
+// @tag:tablet-filter
+fun timeOn(line: AppTime, tablet: String?): Long = if (tablet == null) line.ms else line.byTablet[tablet] ?: 0
 
 @Composable
 private fun ModeCard(child: ChildHome, api: ParentApi, actions: ParentActions) {
@@ -164,13 +182,13 @@ private fun ModeCard(child: ChildHome, api: ParentApi, actions: ParentActions) {
 
 /** Today's apps by time, the noticeable ones; the rest behind one line that says how many and why hidden. */
 @Composable
-private fun AppList(child: ChildHome, api: ParentApi, actions: ParentActions, onApp: (String) -> Unit) {
+private fun AppList(child: ChildHome, api: ParentApi, actions: ParentActions, onApp: (String) -> Unit, tablet: String?) {
     val colors = LocalChildColors.current
     var all by rememberSaveable { mutableStateOf(false) }
 
     when (val usage = child.usage) {
         is AppUsage.Known -> {
-            val apps = usage.today.filter { it.ms > 0 }.sortedByDescending { it.ms }
+            val apps = usage.today.map { it.copy(ms = timeOn(it, tablet)) }.filter { it.ms > 0 }.sortedByDescending { it.ms }
             val shown = if (all) apps else apps.filter { it.ms >= NOTICEABLE_MS }
             val max = apps.firstOrNull()?.ms ?: 0
 
@@ -329,13 +347,18 @@ fun categoryStateColor(category: ParentCategory): Color {
 }
 
 @Composable
-fun categoryState(category: ParentCategory): String = when {
+fun categoryState(category: ParentCategory): String = categoryClosedState(category)
+    ?: if (category.remaining == null) stringResource(R.string.parent_no_limit)
+    else stringResource(R.string.parent_remaining, formatDuration(category.remaining!!))
+
+/** What closed the category or opened it over the limits; null — nothing of the kind, the limits speak for themselves. */
+@Composable
+fun categoryClosedState(category: ParentCategory): String? = when {
     category.closedByParent -> stringResource(R.string.parent_closed_by_parent) +
             (category.closedByParentUntil?.let { " " + stringResource(R.string.parent_until, formatClock(it)) } ?: "")
     category.allowedUntil != null -> stringResource(R.string.parent_allowed_until, formatClock(category.allowedUntil!!))
     category.closedByModeUntil != null -> stringResource(R.string.parent_closed_mode_until, formatClock(category.closedByModeUntil!!))
-    category.remaining == null -> stringResource(R.string.parent_no_limit)
-    else -> stringResource(R.string.parent_remaining, formatDuration(category.remaining!!))
+    else -> null
 }
 
 /** One menu for a category: time for today first, then closing, then the name the parent gave it. */
@@ -364,28 +387,4 @@ fun CategoryMenu(category: ParentCategory, child: ChildHome, api: ParentApi, act
         }
         MenuItem(stringResource(R.string.parent_rename), onClick = onRename)
     }
-}
-
-@Composable
-fun TabletsScreen(child: ChildHome) {
-    val colors = LocalChildColors.current
-
-    child.tablets.forEach { tablet ->
-        Card {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(tablet.name, color = colors.text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                tablet.todayMs?.let { Text(formatDuration(it), color = colors.text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold) }
-            }
-            Text(
-                when {
-                    !tablet.online && tablet.seen == 0L -> stringResource(R.string.parent_tablet_unknown)
-                    !tablet.online -> stringResource(R.string.parent_tablet_offline, formatClock(tablet.seen))
-                    tablet.appNow != null -> stringResource(R.string.parent_tablet_now, tablet.appNow!!.title)
-                    else -> stringResource(R.string.parent_tablet_online)
-                },
-                color = if (tablet.online) colors.allowed else colors.secondary, fontSize = 14.sp
-            )
-        }
-    }
-    Spacer(Modifier.height(4.dp))
 }

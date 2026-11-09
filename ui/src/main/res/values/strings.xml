@@ -236,6 +236,13 @@
     <string name="parent_own_limit">Свой лимит</string>
     <string name="parent_own_limit_inside">внутри лимита категории %s</string>
     <string name="parent_no">нет</string>
+    <string name="parent_tablets_button">Планшеты · %d</string>
+    <string name="parent_today_on_tablet">Сегодня на «%s»</string>
+    <string name="parent_only_tablet">Только «%s»</string>
+    <string name="parent_all_tablets">Все планшеты</string>
+    <string name="parent_tablet_usage">Что делали на нём</string>
+    <string name="parent_tablet_settings">Настройки планшета ›</string>
+    <string name="parent_no_tablet_yet">Детский планшет ещё не подключён — пока ограничивать нечего.</string>
     <string name="parent_mode_time">Время</string>
     <string name="parent_mode_manage">Управление</string>
     <string name="parent_all_apps_of_category">Все приложения категории · %d</string>

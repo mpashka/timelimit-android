@@ -126,7 +126,7 @@ fun ParentScreen(api: ParentApi, startOnRequests: Boolean, openOldInterface: () 
                             requestsOpen -> RequestsScreen(child, api, actions)
                             openApp != null -> AppCard(child, openApp!!, api, actions, onBack = { openApp = null })
                             tab == ParentTab.Today -> {
-                                TodayScreen(child, api, actions, onApp = { openApp = it })
+                                TodayScreen(child, api, actions, onApp = { openApp = it }, onTablets = { tab = ParentTab.Tablets })
                                 TextButton(onClick = openOldInterface) { Text(stringResource(R.string.parent_open_old)) }
                             }
                             tab == ParentTab.Apps -> AppsScreen(child, api, actions, onApp = { openApp = it })
