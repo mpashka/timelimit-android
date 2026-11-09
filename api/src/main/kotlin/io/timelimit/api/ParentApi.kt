@@ -23,6 +23,9 @@ interface ParentApi {
 
     suspend fun closeAll(until: Long): Undo?
 
+    /** Takes back a close by the parent; the limits and modes of the category go on as before. */
+    suspend fun openCategory(categoryId: String): Undo?
+
     // @tag:child-request
     suspend fun answer(requestId: String, scope: GrantScope, until: Long): Undo?
 
@@ -37,6 +40,10 @@ interface ParentApi {
 
     // @tag:app-rule
     suspend fun setAppRule(packageName: String, days: Int, limitMinutes: Int): Undo?
+
+    /** "+N" for one app: it opens over its limits and over a mode, counting from the allowance in force. */
+    // @tag:app-allowance
+    suspend fun allowApp(packageName: String, minutes: Int): Undo?
 
     /** null — the mode is off. */
     // @tag:ban-schedule
@@ -103,9 +110,19 @@ sealed interface AppUsage {
     data class Failed(val httpCode: Int?, val detail: String) : AppUsage
 }
 
-/** [byTablet] — the same time split by tablet id; a tablet missing from it had no time with the app. */
+/**
+ * [byTablet] — the same time split by tablet id; a tablet missing from it had no time with the app.
+ * [allowedUntil] null — the app is not open over its limits now.
+ */
 // @tag:app-usage
-data class AppTime(val app: App, val ms: Long, val category: CategoryRef?, val byTablet: Map<String, Long>, val rule: AppRuleLine?)
+data class AppTime(
+    val app: App,
+    val ms: Long,
+    val category: CategoryRef?,
+    val byTablet: Map<String, Long>,
+    val rule: AppRuleLine?,
+    val allowedUntil: Long?,
+)
 
 data class AppRuleLine(val days: Int, val limitMinutes: Int)
 

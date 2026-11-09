@@ -43,7 +43,7 @@ fun AppsScreen(child: ChildHome, api: ParentApi, actions: ParentActions, onApp: 
         is AppUsage.Known -> usage.week.groupBy { it.category }.forEach { (category, lines) ->
             Text(category?.title ?: stringResource(R.string.parent_without_category), color = colors.secondary, fontSize = 14.sp)
             lines.forEach { line ->
-                AppRow(line, line.rule?.let { ruleText(it) }) { onApp(line.app.packageName) }
+                AppRow(line, line.rule?.let { ruleText(it) }, api, actions) { onApp(line.app.packageName) }
             }
         }
         AppUsage.Loading -> Text(stringResource(R.string.parent_usage_loading), color = colors.secondary)

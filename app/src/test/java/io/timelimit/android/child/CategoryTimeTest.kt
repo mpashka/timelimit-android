@@ -29,7 +29,8 @@ class CategoryTimeTest {
         ms = byTablet.sumOf { it.second },
         category = categoryId?.let { CategoryRef(it, it) },
         byTablet = byTablet.toMap(),
-        rule = null
+        rule = null,
+        allowedUntil = null
     )
 
     private val apps = listOf(

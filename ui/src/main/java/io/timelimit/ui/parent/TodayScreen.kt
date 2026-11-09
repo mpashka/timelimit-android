@@ -52,6 +52,7 @@ import io.timelimit.ui.child.formatDuration
 
 private const val MINUTE = 60_000L
 private const val MAX_CATEGORY_TITLE = 50
+private val GRANTS = listOf(15, 30, 60)
 /** Less than this a day is noise: such rows wait behind «Ещё N — меньше минуты». */
 private const val NOTICEABLE_MS = MINUTE
 private const val PREFS = "parent_ui"
@@ -126,7 +127,7 @@ fun TodayScreen(child: ChildHome, api: ParentApi, actions: ParentActions, onApp:
             }, text = { Text(stringResource(title)) })
         }
     }
-    if (categoriesTab) child.categories.forEach { CategoryCard(it, child, api, actions) } else AppList(child, onApp)
+    if (categoriesTab) child.categories.forEach { CategoryCard(it, child, api, actions) } else AppList(child, api, actions, onApp)
 
     SectionTitle(stringResource(R.string.parent_tab_tablets))
     TabletsScreen(child)
@@ -162,7 +163,7 @@ private fun ModeCard(child: ChildHome, api: ParentApi, actions: ParentActions) {
 
 /** Today's apps by time, the noticeable ones; the rest behind one line that says how many and why hidden. */
 @Composable
-private fun AppList(child: ChildHome, onApp: (String) -> Unit) {
+private fun AppList(child: ChildHome, api: ParentApi, actions: ParentActions, onApp: (String) -> Unit) {
     val colors = LocalChildColors.current
     var all by rememberSaveable { mutableStateOf(false) }
 
@@ -175,7 +176,7 @@ private fun AppList(child: ChildHome, onApp: (String) -> Unit) {
             if (apps.isEmpty()) Text(stringResource(R.string.parent_no_apps_today), color = colors.secondary, fontSize = 14.sp)
             shown.forEach { line ->
                 val note = listOfNotNull(line.category?.title, line.rule?.let { ruleText(it) }).joinToString(" · ")
-                AppRow(line, note, max) { onApp(line.app.packageName) }
+                AppRow(line, note, api, actions, max) { onApp(line.app.packageName) }
             }
             if (shown.size < apps.size) Row(Modifier.fillMaxWidth().clickable { all = true }.padding(vertical = 8.dp)) {
                 Text(stringResource(R.string.parent_more_under_minute, apps.size - shown.size), color = colors.secondary, fontSize = 14.sp, modifier = Modifier.weight(1f))
@@ -189,7 +190,7 @@ private fun AppList(child: ChildHome, onApp: (String) -> Unit) {
 }
 
 @Composable
-fun AppRow(line: AppTime, note: String?, max: Long = 0, onClick: () -> Unit) {
+fun AppRow(line: AppTime, note: String?, api: ParentApi, actions: ParentActions, max: Long = 0, onClick: () -> Unit) {
     val colors = LocalChildColors.current
 
     Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -205,6 +206,33 @@ fun AppRow(line: AppTime, note: String?, max: Long = 0, onClick: () -> Unit) {
             )
         }
         Text(formatDuration(line.ms), color = colors.text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+        AppMenu(line, api, actions, onMore = onClick)
+    }
+}
+
+/** One menu for an app: today's allowance first, then closing for good, then the card with the rest. */
+// @tag:app-allowance @tag:app-rule
+@Composable
+private fun AppMenu(line: AppTime, api: ParentApi, actions: ParentActions, onMore: () -> Unit) {
+    val allowed = stringResource(R.string.parent_app_allowed)
+    val set = stringResource(R.string.parent_rule_set)
+    val title = line.app.title
+    val closedAlways = line.rule != null && line.rule!!.days and 127 == 0
+
+    RowMenu(title, line.allowedUntil?.let { stringResource(R.string.parent_allowed_until, formatClock(it)) }) {
+        MenuLabel(stringResource(R.string.parent_allow_over_limit))
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            GRANTS.forEach { minutes ->
+                val span = formatDuration(minutes * MINUTE)
+                MenuChip("+$span") { actions(allowed.format(title, span)) { api.allowApp(line.app.packageName, minutes) } }
+            }
+        }
+        MenuItem(stringResource(if (closedAlways) R.string.parent_open_again else R.string.parent_close_always), closer = !closedAlways) {
+            actions(set.format(title, if (closedAlways) "—" else "×")) {
+                api.setAppRule(line.app.packageName, if (closedAlways) 127 else 0, line.rule?.limitMinutes ?: -1)
+            }
+        }
+        MenuItem(stringResource(R.string.parent_app_more), onClick = onMore)
     }
 }
 
@@ -249,8 +277,6 @@ private fun NewAppCard(line: NewAppLine, child: ChildHome, api: ParentApi, actio
 @Composable
 fun CategoryCard(category: ParentCategory, child: ChildHome, api: ParentApi, actions: ParentActions) {
     val colors = LocalChildColors.current
-    val added = stringResource(R.string.parent_added)
-    val closed = stringResource(R.string.parent_closed_until)
     val renamed = stringResource(R.string.parent_renamed)
     var editing by rememberSaveable(category.ref.id) { mutableStateOf(false) }
     var name by rememberSaveable(category.ref.id) { mutableStateOf(category.ref.title) }
@@ -265,20 +291,9 @@ fun CategoryCard(category: ParentCategory, child: ChildHome, api: ParentApi, act
             TextButton(onClick = { editing = false; name = category.ref.title }) { Text(stringResource(R.string.parent_cancel)) }
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            // the name is the parent's own: a tap on it renames the category
+            Text(category.ref.title, color = colors.text, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
             Text(
-                category.ref.title, color = colors.text, fontSize = 18.sp, fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.weight(1f).clickable { name = category.ref.title; editing = true }
-            )
-            Text(
-                when {
-                    category.closedByParent -> stringResource(R.string.parent_closed_by_parent) +
-                            (category.closedByParentUntil?.let { " " + stringResource(R.string.parent_until, formatClock(it)) } ?: "")
-                    category.allowedUntil != null -> stringResource(R.string.parent_allowed_until, formatClock(category.allowedUntil!!))
-                    category.closedByModeUntil != null -> stringResource(R.string.parent_closed_mode_until, formatClock(category.closedByModeUntil!!))
-                    category.remaining == null -> stringResource(R.string.parent_no_limit)
-                    else -> stringResource(R.string.parent_remaining, formatDuration(category.remaining!!))
-                },
+                categoryState(category),
                 color = when {
                     category.closedByParent || category.closedByModeUntil != null && category.allowedUntil == null -> colors.closed
                     category.remaining != null && category.remaining!! < 10 * MINUTE -> colors.endingSoon
@@ -286,6 +301,7 @@ fun CategoryCard(category: ParentCategory, child: ChildHome, api: ParentApi, act
                 },
                 fontSize = 15.sp
             )
+            CategoryMenu(category, child, api, actions, onRename = { name = category.ref.title; editing = true })
         }
         category.limit?.let { limit ->
             LinearProgressIndicator(
@@ -298,14 +314,40 @@ fun CategoryCard(category: ParentCategory, child: ChildHome, api: ParentApi, act
         }
         category.week?.let { WeekLine(it, 13.sp) }
         category.limitedBy?.let { Text(stringResource(R.string.limited_by_parent_category, it), color = colors.secondary, fontSize = 13.sp) }
+    }
+}
+
+@Composable
+private fun categoryState(category: ParentCategory): String = when {
+    category.closedByParent -> stringResource(R.string.parent_closed_by_parent) +
+            (category.closedByParentUntil?.let { " " + stringResource(R.string.parent_until, formatClock(it)) } ?: "")
+    category.allowedUntil != null -> stringResource(R.string.parent_allowed_until, formatClock(category.allowedUntil!!))
+    category.closedByModeUntil != null -> stringResource(R.string.parent_closed_mode_until, formatClock(category.closedByModeUntil!!))
+    category.remaining == null -> stringResource(R.string.parent_no_limit)
+    else -> stringResource(R.string.parent_remaining, formatDuration(category.remaining!!))
+}
+
+/** One menu for a category: time for today first, then closing, then the name the parent gave it. */
+@Composable
+private fun CategoryMenu(category: ParentCategory, child: ChildHome, api: ParentApi, actions: ParentActions, onRename: () -> Unit) {
+    val added = stringResource(R.string.parent_added)
+    val closed = stringResource(R.string.parent_closed_until)
+    val opened = stringResource(R.string.parent_opened)
+    val title = category.ref.title
+
+    RowMenu(title, categoryState(category)) {
+        MenuLabel(stringResource(R.string.parent_add_today))
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            listOf(15, 30, 60).forEach { minutes ->
-                Chip("+$minutes") { actions(added.format(category.ref.title, minutes)) { api.addTime(category.ref.id, minutes) } }
-            }
-            Chip(stringResource(R.string.parent_close_until_morning)) {
-                actions(closed.format(category.ref.title, formatClock(child.morning))) { api.closeCategory(category.ref.id, child.morning) }
+            GRANTS.forEach { minutes ->
+                MenuChip("+$minutes") { actions(added.format(title, minutes)) { api.addTime(category.ref.id, minutes) } }
             }
         }
+        if (category.closedByParent) MenuItem(stringResource(R.string.parent_open)) {
+            actions(opened.format(title)) { api.openCategory(category.ref.id) }
+        } else MenuItem(stringResource(R.string.parent_close_until_morning), hint = formatClock(child.morning), closer = true) {
+            actions(closed.format(title, formatClock(child.morning))) { api.closeCategory(category.ref.id, child.morning) }
+        }
+        MenuItem(stringResource(R.string.parent_rename), onClick = onRename)
     }
 }
 

@@ -195,6 +195,14 @@
     <string name="parent_used_of">%1$s из %2$s</string>
     <string name="parent_used_today">сегодня %s</string>
     <string name="parent_close_until_morning">Закрыть до утра</string>
+    <string name="parent_actions">Действия: %s</string>
+    <string name="parent_add_today">Добавить на сегодня</string>
+    <string name="parent_allow_over_limit">Разрешить сверх лимита</string>
+    <string name="parent_app_allowed">%1$s: +%2$s сверх лимита</string>
+    <string name="parent_app_more">Категория, свой лимит, неделя ›</string>
+    <string name="parent_open">Открыть</string>
+    <string name="parent_opened">%s открыто</string>
+    <string name="parent_rename">Переименовать</string>
     <string name="parent_tablet_unknown">нет данных, в сети ли</string>
     <string name="parent_tablet_offline">не в сети с %s</string>
     <string name="parent_tablet_now">сейчас: %s</string>

@@ -3,6 +3,7 @@ package io.timelimit.android.child
 import android.content.Context
 import androidx.lifecycle.asFlow
 import io.timelimit.android.data.extensions.sortedCategories
+import io.timelimit.android.data.model.AppAllowance
 import io.timelimit.android.data.model.ChildRequestAnswer
 import io.timelimit.android.data.model.Device
 import io.timelimit.android.data.model.User
@@ -212,7 +213,8 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
                     .map { (packageName, items) ->
                         AppTime(app(packageName), items.sumOf { it.ms }, categoryOf(packageName),
                             items.groupBy { it.deviceId }.mapValues { (_, ofTablet) -> ofTablet.sumOf { it.ms } },
-                            child.appRules.find { it.packageName == packageName }?.let { AppRuleLine(it.days, it.limitMinutes) })
+                            child.appRules.find { it.packageName == packageName }?.let { AppRuleLine(it.days, it.limitMinutes) },
+                            AppAllowance.activeUntil(child.appAllowances, packageName, now, trustTime = true))
                     }
                     .sortedByDescending { it.ms }
 
@@ -409,6 +411,13 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
         return undoWith(roots.map { restoreBlocked(it) })
     }
 
+    override suspend fun openCategory(categoryId: String): Undo? {
+        val category = childData()?.categoryById?.get(categoryId)?.category ?: return null
+
+        dispatch(listOf(UpdateCategoryTemporarilyBlockedAction(categoryId, false, null)))
+        return undoWith(listOf(restoreBlocked(category)))
+    }
+
     override suspend fun answer(requestId: String, scope: GrantScope, until: Long): Undo? {
         val data = childData() ?: return null
         val request = data.user.childRequests.find { it.id == requestId } ?: return null
@@ -458,6 +467,16 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
 
         dispatch(listOf(SetAppRuleAction(data.user.id, packageName, days, limitMinutes)))
         return undoWith(listOf(SetAppRuleAction(data.user.id, packageName, old?.days ?: 127, old?.limitMinutes ?: -1)))
+    }
+
+    // the allowance stacks on the one in force, as in the web console
+    // @tag:app-allowance
+    override suspend fun allowApp(packageName: String, minutes: Int): Undo? {
+        val data = childData() ?: return null
+        val previous = data.user.appAllowances.filter { it.packageName == packageName }.maxOfOrNull { it.until } ?: 0
+
+        dispatch(listOf(SetAppAllowanceAction(data.user.id, packageName, previous.coerceAtLeast(now()) + minutes * MINUTE)))
+        return undoWith(listOf(SetAppAllowanceAction(data.user.id, packageName, previous)))
     }
 
     // @tag:ban-schedule
