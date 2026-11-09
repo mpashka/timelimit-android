@@ -29,7 +29,6 @@ import io.timelimit.ui.child.formatDuration
 import java.time.Instant
 import java.time.ZoneId
 
-private const val MINUTE = 60_000L
 
 /** P6, P8: all apps of the week by category, new ones first; a row opens the app card. */
 // @tag:new-ui

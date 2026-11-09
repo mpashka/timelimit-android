@@ -34,7 +34,6 @@ import io.timelimit.ui.child.LocalChildColors
 import io.timelimit.ui.child.formatClock
 import io.timelimit.ui.child.formatDuration
 
-private const val MINUTE = 60_000L
 
 @Composable
 fun ruleText(rule: AppRuleLine): String? {

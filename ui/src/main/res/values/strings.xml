@@ -236,6 +236,15 @@
     <string name="parent_own_limit">Свой лимит</string>
     <string name="parent_own_limit_inside">внутри лимита категории %s</string>
     <string name="parent_no">нет</string>
+    <string name="parent_mode_time">Время</string>
+    <string name="parent_mode_manage">Управление</string>
+    <string name="parent_all_apps_of_category">Все приложения категории · %d</string>
+    <string name="parent_no_apps_in_category">В категории нет приложений.</string>
+    <string name="parent_no_apps_today_in_category">Сегодня приложения этой категории не открывали.</string>
+    <string name="parent_day_limit">Лимит в день</string>
+    <string name="parent_limit_set">«%1$s»: лимит %2$s в день</string>
+    <string name="parent_limit_none">«%1$s»: без дневного лимита</string>
+    <string name="parent_limit_mixed">В приложении на планшете заданы разные лимиты по дням (показан наименьший); нажатие заменит их одним на все дни.</string>
     <string name="parent_close_always">Закрыть всегда</string>
     <string name="parent_open_again">Снова открыть</string>
 

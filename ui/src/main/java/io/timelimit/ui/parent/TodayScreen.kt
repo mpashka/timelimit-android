@@ -31,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -50,11 +51,11 @@ import io.timelimit.ui.child.WeekLine
 import io.timelimit.ui.child.formatClock
 import io.timelimit.ui.child.formatDuration
 
-private const val MINUTE = 60_000L
+internal const val MINUTE = 60_000L
 private const val MAX_CATEGORY_TITLE = 50
 private val GRANTS = listOf(15, 30, 60)
 /** Less than this a day is noise: such rows wait behind «Ещё N — меньше минуты». */
-private const val NOTICEABLE_MS = MINUTE
+internal const val NOTICEABLE_MS = MINUTE
 private const val PREFS = "parent_ui"
 private const val PREF_CATEGORIES_TAB = "home_categories_tab"
 
@@ -72,13 +73,13 @@ fun Card(content: @Composable ColumnScope.() -> Unit) {
  * of a group on a keyboard tablet) can make one look selected.
  */
 @Composable
-fun Chip(text: String, onClick: () -> Unit) {
+fun Chip(text: String, enabled: Boolean = true, onClick: () -> Unit) {
     val colors = LocalChildColors.current
     val shape = RoundedCornerShape(8.dp)
 
     Box(
         Modifier.heightIn(min = 40.dp).clip(shape).border(1.dp, colors.secondary.copy(alpha = 0.4f), shape)
-            .background(colors.surface).clickable(onClick = onClick).padding(horizontal = 12.dp),
+            .background(colors.surface).clickable(enabled = enabled, onClick = onClick).padding(horizontal = 12.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(text, color = colors.action, fontSize = 14.sp, fontWeight = FontWeight.Normal)
@@ -127,7 +128,7 @@ fun TodayScreen(child: ChildHome, api: ParentApi, actions: ParentActions, onApp:
             }, text = { Text(stringResource(title)) })
         }
     }
-    if (categoriesTab) child.categories.forEach { CategoryCard(it, child, api, actions) } else AppList(child, api, actions, onApp)
+    if (categoriesTab) CategoryTree(child, api, actions, onApp) else AppList(child, api, actions, onApp)
 
     SectionTitle(stringResource(R.string.parent_tab_tablets))
     TabletsScreen(child)
@@ -277,31 +278,14 @@ private fun NewAppCard(line: NewAppLine, child: ChildHome, api: ParentApi, actio
 @Composable
 fun CategoryCard(category: ParentCategory, child: ChildHome, api: ParentApi, actions: ParentActions) {
     val colors = LocalChildColors.current
-    val renamed = stringResource(R.string.parent_renamed)
     var editing by rememberSaveable(category.ref.id) { mutableStateOf(false) }
-    var name by rememberSaveable(category.ref.id) { mutableStateOf(category.ref.title) }
 
     Card {
-        if (editing) Row(verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(name, { name = it.take(MAX_CATEGORY_TITLE) }, singleLine = true, modifier = Modifier.weight(1f))
-            TextButton(onClick = {
-                editing = false
-                actions(renamed.format(name.trim())) { api.renameCategory(category.ref.id, name) }
-            }, enabled = name.isNotBlank()) { Text(stringResource(R.string.parent_save)) }
-            TextButton(onClick = { editing = false; name = category.ref.title }) { Text(stringResource(R.string.parent_cancel)) }
-        }
+        if (editing) RenameField(category, api, actions) { editing = false }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(category.ref.title, color = colors.text, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-            Text(
-                categoryState(category),
-                color = when {
-                    category.closedByParent || category.closedByModeUntil != null && category.allowedUntil == null -> colors.closed
-                    category.remaining != null && category.remaining!! < 10 * MINUTE -> colors.endingSoon
-                    else -> colors.allowed
-                },
-                fontSize = 15.sp
-            )
-            CategoryMenu(category, child, api, actions, onRename = { name = category.ref.title; editing = true })
+            Text(categoryState(category), color = categoryStateColor(category), fontSize = 15.sp)
+            CategoryMenu(category, child, api, actions, onRename = { editing = true })
         }
         category.limit?.let { limit ->
             LinearProgressIndicator(
@@ -317,8 +301,35 @@ fun CategoryCard(category: ParentCategory, child: ChildHome, api: ParentApi, act
     }
 }
 
+/** The new name in place of the old one; [onDone] hides the field, saved or not. */
 @Composable
-private fun categoryState(category: ParentCategory): String = when {
+fun RenameField(category: ParentCategory, api: ParentApi, actions: ParentActions, onDone: () -> Unit) {
+    val renamed = stringResource(R.string.parent_renamed)
+    var name by rememberSaveable(category.ref.id) { mutableStateOf(category.ref.title) }
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        OutlinedTextField(name, { name = it.take(MAX_CATEGORY_TITLE) }, singleLine = true, modifier = Modifier.weight(1f))
+        TextButton(onClick = {
+            onDone()
+            actions(renamed.format(name.trim())) { api.renameCategory(category.ref.id, name) }
+        }, enabled = name.isNotBlank()) { Text(stringResource(R.string.parent_save)) }
+        TextButton(onClick = onDone) { Text(stringResource(R.string.parent_cancel)) }
+    }
+}
+
+@Composable
+fun categoryStateColor(category: ParentCategory): Color {
+    val colors = LocalChildColors.current
+
+    return when {
+        category.closedByParent || category.closedByModeUntil != null && category.allowedUntil == null -> colors.closed
+        category.remaining != null && category.remaining!! < 10 * MINUTE -> colors.endingSoon
+        else -> colors.allowed
+    }
+}
+
+@Composable
+fun categoryState(category: ParentCategory): String = when {
     category.closedByParent -> stringResource(R.string.parent_closed_by_parent) +
             (category.closedByParentUntil?.let { " " + stringResource(R.string.parent_until, formatClock(it)) } ?: "")
     category.allowedUntil != null -> stringResource(R.string.parent_allowed_until, formatClock(category.allowedUntil!!))
@@ -329,7 +340,7 @@ private fun categoryState(category: ParentCategory): String = when {
 
 /** One menu for a category: time for today first, then closing, then the name the parent gave it. */
 @Composable
-private fun CategoryMenu(category: ParentCategory, child: ChildHome, api: ParentApi, actions: ParentActions, onRename: () -> Unit) {
+fun CategoryMenu(category: ParentCategory, child: ChildHome, api: ParentApi, actions: ParentActions, onRename: () -> Unit) {
     val added = stringResource(R.string.parent_added)
     val closed = stringResource(R.string.parent_closed_until)
     val opened = stringResource(R.string.parent_opened)
