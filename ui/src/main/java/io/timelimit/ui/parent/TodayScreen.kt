@@ -333,6 +333,7 @@ private fun CategoryMenu(category: ParentCategory, child: ChildHome, api: Parent
     val added = stringResource(R.string.parent_added)
     val closed = stringResource(R.string.parent_closed_until)
     val opened = stringResource(R.string.parent_opened)
+    val limited = stringResource(R.string.parent_limits_back)
     val title = category.ref.title
 
     RowMenu(title, categoryState(category)) {
@@ -346,6 +347,9 @@ private fun CategoryMenu(category: ParentCategory, child: ChildHome, api: Parent
             actions(opened.format(title)) { api.openCategory(category.ref.id) }
         } else MenuItem(stringResource(R.string.parent_close_until_morning), hint = formatClock(child.morning), closer = true) {
             actions(closed.format(title, formatClock(child.morning))) { api.closeCategory(category.ref.id, child.morning) }
+        }
+        if (category.allowedUntil != null) MenuItem(stringResource(R.string.parent_return_limits)) {
+            actions(limited.format(title)) { api.returnLimits(category.ref.id) }
         }
         MenuItem(stringResource(R.string.parent_rename), onClick = onRename)
     }

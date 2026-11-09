@@ -418,6 +418,13 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
         return undoWith(listOf(restoreBlocked(category)))
     }
 
+    override suspend fun returnLimits(categoryId: String): Undo? {
+        val category = childData()?.categoryById?.get(categoryId)?.category ?: return null
+
+        dispatch(listOf(UpdateCategoryDisableLimitsAction(categoryId, 0)))
+        return undoWith(listOf(UpdateCategoryDisableLimitsAction(categoryId, category.disableLimitsUntil)))
+    }
+
     override suspend fun answer(requestId: String, scope: GrantScope, until: Long): Undo? {
         val data = childData() ?: return null
         val request = data.user.childRequests.find { it.id == requestId } ?: return null

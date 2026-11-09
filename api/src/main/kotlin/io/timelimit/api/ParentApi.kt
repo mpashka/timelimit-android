@@ -26,6 +26,9 @@ interface ParentApi {
     /** Takes back a close by the parent; the limits and modes of the category go on as before. */
     suspend fun openCategory(categoryId: String): Undo?
 
+    /** Takes back what "+N" opened over a mode: the limits of the category are in force again. */
+    suspend fun returnLimits(categoryId: String): Undo?
+
     // @tag:child-request
     suspend fun answer(requestId: String, scope: GrantScope, until: Long): Undo?
 

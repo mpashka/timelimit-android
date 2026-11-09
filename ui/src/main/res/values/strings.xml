@@ -203,6 +203,8 @@
     <string name="parent_open">Открыть</string>
     <string name="parent_opened">%s открыто</string>
     <string name="parent_rename">Переименовать</string>
+    <string name="parent_return_limits">Вернуть лимиты</string>
+    <string name="parent_limits_back">Лимиты %s снова действуют</string>
     <string name="parent_tablet_unknown">нет данных, в сети ли</string>
     <string name="parent_tablet_offline">не в сети с %s</string>
     <string name="parent_tablet_now">сейчас: %s</string>
