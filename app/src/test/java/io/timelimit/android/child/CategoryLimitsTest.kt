@@ -3,6 +3,7 @@ package io.timelimit.android.child
 import io.timelimit.android.data.model.TimeLimitRule
 import io.timelimit.android.data.model.UsedTimeItem
 import io.timelimit.android.date.DateInTimezone
+import io.timelimit.api.DailyLimit
 import io.timelimit.api.WeekLimit
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -35,5 +36,20 @@ class CategoryLimitsTest {
         assertEquals(60L * minute, limits.dayLimit)
         assertEquals(WeekLimit(300L * minute, 300L * minute), limits.week)
         assertEquals(5, limits.daysUntilWeekOpens)
+    }
+
+    @Test
+    fun differentLimitsPerDayShowTheSmallestAndSayTheyAreMixed() {
+        assertEquals(DailyLimit(60, true), dailyLimitOf(rules))
+    }
+
+    @Test
+    fun oneRuleForEveryDayIsTheLimitToShow() {
+        assertEquals(DailyLimit(90, false), dailyLimitOf(listOf(rule("allday", Schedules.ALL_DAYS, 90, perDay = true))))
+    }
+
+    @Test
+    fun withoutDayRulesThereIsNoLimitToShow() {
+        assertEquals(DailyLimit(null, false), dailyLimitOf(rules.filter { !it.perDay }))
     }
 }

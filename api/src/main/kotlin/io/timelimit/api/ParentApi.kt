@@ -38,6 +38,10 @@ interface ParentApi {
     /** The name is the parent's own, stored as typed (any Unicode). */
     suspend fun renameCategory(categoryId: String, title: String): Undo?
 
+    /** The day limit of the category, one for all days; null — no day limit at all. */
+    // @tag:category-limits
+    suspend fun setCategoryLimit(categoryId: String, minutes: Int?): Undo?
+
     // @tag:new-app
     suspend fun moveApp(packageName: String, categoryId: String): Undo?
 
@@ -145,6 +149,9 @@ data class ParentCategory(
     val limit: Long?,
     /** null — no weekly limit today */
     val week: WeekLimit?,
+    /** every app of the category, [AppTime.ms] 0 — not opened today */
+    val apps: List<AppTime> = emptyList(),
+    val dailyLimit: DailyLimit = DailyLimit(null, false),
     val closedByModeUntil: Long?,
     val closedByParentUntil: Long?,
     val closedByParent: Boolean,
@@ -152,6 +159,13 @@ data class ParentCategory(
     /** the parent category that runs out first: [remaining] is its time */
     val limitedBy: String? = null,
 )
+
+/**
+ * The day limit of a category as its rules set it: [minutes] null — no day limit at all, [mixed] —
+ * the days are limited differently (only the old interface can do that) and [minutes] is the smallest.
+ */
+// @tag:category-limits
+data class DailyLimit(val minutes: Int?, val mixed: Boolean)
 
 data class ParentRequest(
     val id: String,

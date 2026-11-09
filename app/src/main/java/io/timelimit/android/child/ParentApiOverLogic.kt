@@ -2,8 +2,10 @@ package io.timelimit.android.child
 
 import android.content.Context
 import androidx.lifecycle.asFlow
+import io.timelimit.android.data.IdGenerator
 import io.timelimit.android.data.extensions.sortedCategories
 import io.timelimit.android.data.model.AppAllowance
+import io.timelimit.android.data.model.TimeLimitRule
 import io.timelimit.android.data.model.ChildRequestAnswer
 import io.timelimit.android.data.model.Device
 import io.timelimit.android.data.model.User
@@ -19,6 +21,8 @@ import io.timelimit.android.logic.RealTime
 import io.timelimit.android.logic.blockingreason.CategoryHandlingCache
 import io.timelimit.android.sync.actions.AddCategoryAppsAction
 import io.timelimit.android.sync.actions.AnswerChildRequestAction
+import io.timelimit.android.sync.actions.CreateTimeLimitRuleAction
+import io.timelimit.android.sync.actions.DeleteTimeLimitRuleAction
 import io.timelimit.android.sync.actions.IncrementCategoryExtraTimeAction
 import io.timelimit.android.sync.actions.ParentAction
 import io.timelimit.android.sync.actions.SetAppRuleAction
@@ -190,6 +194,15 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
         }
         val categoryRefs = ownTime.map { it.ref }
 
+        fun appLine(packageName: String, ms: Long, byTablet: Map<String, Long>, category: CategoryRef?) = AppTime(
+            app = app(packageName),
+            ms = ms,
+            category = category,
+            byTablet = byTablet,
+            rule = child.appRules.find { it.packageName == packageName }?.let { AppRuleLine(it.days, it.limitMinutes) },
+            allowedUntil = AppAllowance.activeUntil(child.appAllowances, packageName, now, trustTime = true),
+        )
+
         val windows = data.categories.filter { it.category.parentCategoryId.isEmpty() }.map { it to Schedules.blockedMinutes(it) }
         val modeNow = windows.filter { it.second[nowMinute] }
             .mapNotNull { (category, bits) -> ModeClock.minutesUntilOpen(bits, nowMinute)?.let { it to category } }.minByOrNull { it.first }
@@ -211,10 +224,9 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
                 }
                 fun lines(filter: (AppUsageRow) -> Boolean) = rows.filter(filter).groupBy { it.packageName }
                     .map { (packageName, items) ->
-                        AppTime(app(packageName), items.sumOf { it.ms }, categoryOf(packageName),
+                        appLine(packageName, items.sumOf { it.ms },
                             items.groupBy { it.deviceId }.mapValues { (_, ofTablet) -> ofTablet.sumOf { it.ms } },
-                            child.appRules.find { it.packageName == packageName }?.let { AppRuleLine(it.days, it.limitMinutes) },
-                            AppAllowance.activeUntil(child.appAllowances, packageName, now, trustTime = true))
+                            categoryOf(packageName))
                     }
                     .sortedByDescending { it.ms }
 
@@ -245,10 +257,23 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
             }
         }
         val usageToday = (appUsage as? AppUsage.Known)?.today.orEmpty()
+        val assignedPackages = data.categoryApps.groupBy({ it.categoryId }, { it.appSpecifier.packageName })
+
+        // apps whose time went to the category join the assigned ones: the category for apps without
+        // one has nothing assigned at all, and an app assigned on one tablet only has another specifier
+        fun appsOfCategory(ref: CategoryRef): List<AppTime> {
+            val used = usageToday.filter { it.category?.id == ref.id }
+            val usedPackages = used.map { it.app.packageName }.toSet()
+
+            return used + assignedPackages[ref.id].orEmpty().distinct().filterNot { it in usedPackages }
+                .map { appLine(it, 0, emptyMap(), ref) }
+        }
         // @tag:category-time
         val categories = ownTime.map { category ->
-            if (category.limit != null) category
-            else category.copy(usedToday = maxOf(category.usedToday, appsTimeOfCategory(ownTime, category.ref.id, usageToday)))
+            val usedToday = if (category.limit != null) category.usedToday
+            else maxOf(category.usedToday, appsTimeOfCategory(ownTime, category.ref.id, usageToday))
+
+            category.copy(usedToday = usedToday, apps = appsOfCategory(category.ref))
         }
 
         val requests = child.childRequests
@@ -344,6 +369,7 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
                 .sumOf { it.usedMillis },
             limit = limits.dayLimit,
             week = limits.week,
+            dailyLimit = dailyLimitOf(category.rules),
             closedByModeUntil = if (blocked[nowMinute]) ModeClock.minutesUntilOpen(blocked, nowMinute)?.let { minuteStart + it * MINUTE } else null,
             closedByParentUntil = category.category.temporarilyBlockedEndTime.takeIf { tempBlocked && it != 0L },
             closedByParent = tempBlocked,
@@ -455,6 +481,24 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
 
         dispatch(listOf(UpdateCategoryTitleAction(categoryId, wanted)))
         return undoWith(listOf(UpdateCategoryTitleAction(categoryId, old)))
+    }
+
+    /** One rule for all days takes the place of the day limits there were; «Отменить» puts those back as they were. */
+    // @tag:category-limits
+    override suspend fun setCategoryLimit(categoryId: String, minutes: Int?): Undo? {
+        require(minutes == null || minutes > 0) { "the day limit is positive minutes or none, got $minutes" }
+        val previous = dailyLimitRules(childData()?.categoryById?.get(categoryId)?.rules ?: return null)
+        val wanted = minutes?.let {
+            TimeLimitRule(
+                id = IdGenerator.generateId(), categoryId = categoryId, applyToExtraTimeUsage = false,
+                dayMask = Schedules.ALL_DAYS.toByte(), maximumTimeInMillis = it * MINUTE.toInt(),
+                startMinuteOfDay = TimeLimitRule.MIN_START_MINUTE, endMinuteOfDay = TimeLimitRule.MAX_END_MINUTE,
+                sessionDurationMilliseconds = 0, sessionPauseMilliseconds = 0, perDay = true, expiresAt = null,
+            )
+        }
+
+        dispatch(previous.map { DeleteTimeLimitRuleAction(it.id) } + listOfNotNull(wanted?.let { CreateTimeLimitRuleAction(it) }))
+        return undoWith(listOfNotNull(wanted?.let { DeleteTimeLimitRuleAction(it.id) }) + previous.map { CreateTimeLimitRuleAction(it) })
     }
 
     override suspend fun moveApp(packageName: String, categoryId: String): Undo? {
