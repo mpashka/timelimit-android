@@ -77,7 +77,10 @@ object NotificationChannels {
                     NotificationChannel(
                             NotificationChannels.BLOCKED_NOTIFICATIONS_NOTIFICATION,
                             context.getString(R.string.notification_channel_blocked_notification_title),
-                            NotificationManager.IMPORTANCE_DEFAULT
+                            // @tag:blocked-notification-silent
+                            // DEFAULT wakes the locked screen for every notification of a blocked app
+                            // (ambient pulse on ZUI) — at night that is every message in a messenger.
+                            NotificationManager.IMPORTANCE_LOW
                     ).apply {
                         description = context.getString(R.string.notification_channel_blocked_notification_text)
                     }
