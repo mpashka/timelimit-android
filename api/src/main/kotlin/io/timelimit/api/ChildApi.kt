@@ -109,6 +109,9 @@ data class CategoryToday(
     val week: WeekLimit?,
     /** the parent category that runs out first: [remaining] is its time */
     val limitedBy: String? = null,
+    /** packages of [apps] closed by their own rule while the category is open */
+    // @tag:app-rule
+    val closedApps: Set<String> = emptySet(),
 )
 
 /** A rule that sums the days it applies to over the current week (perDay off), as used/limit milliseconds. */

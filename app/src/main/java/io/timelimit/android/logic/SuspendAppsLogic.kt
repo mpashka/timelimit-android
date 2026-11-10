@@ -32,24 +32,30 @@ import io.timelimit.android.integration.platform.android.AndroidIntegrationApps
 import io.timelimit.android.logic.blockingreason.CategoryHandlingCache
 import io.timelimit.android.logic.blockingreason.CategoryItselfHandling
 import java.lang.ref.WeakReference
+import java.time.Instant
+import java.util.TimeZone
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
 class SuspendAppsLogic(private val appLogic: AppLogic): Observer {
     companion object {
-        // @tag:app-allowance
-        fun activeAllowedPackages(allowances: List<AppAllowance>, now: Long, trustTime: Boolean): Set<String> =
-            allowances.filter { trustTime && it.until > now }.map { it.packageName }.toSet()
+        // @tag:app-rule
+        fun nextDayStart(now: Long, timeZone: TimeZone): Long =
+            Instant.ofEpochMilli(now).atZone(timeZone.toZoneId()).toLocalDate().plusDays(1)
+                .atStartOfDay(timeZone.toZoneId()).toInstant().toEpochMilli()
 
-        // @tag:app-allowance
+        // @tag:app-allowance @tag:app-rule
         fun shouldSuspend(
             packageName: String,
             categoryIds: Set<String>,
             allowedCategoryIds: Set<String>,
             allowedPackages: Set<String>,
+            ruleClosedPackages: Set<String>,
             handlingOf: (String) -> CategoryItselfHandling
         ): Boolean {
+            if (ruleClosedPackages.contains(packageName)) return true
+
             val openByAllowance = allowedPackages.contains(packageName) &&
                     categoryIds.none { handlingOf(it).shouldBlockAtSystemLevel(appAllowed = true) }
 
@@ -59,6 +65,7 @@ class SuspendAppsLogic(private val appLogic: AppLogic): Observer {
 
     private var lastDefaultCategory: String? = null
     private var lastAllowedPackages: Set<String>? = null
+    private var lastRuleClosedPackages: Set<String>? = null
     private var lastAllowedCategoryList = emptySet<String>()
     private var lastCategoryApps = emptyList<CategoryApp>()
     private val installedAppsModified = AtomicBoolean(false)
@@ -204,16 +211,30 @@ class SuspendAppsLogic(private val appLogic: AppLogic): Observer {
 
         // @tag:app-allowance
         val allowances = userRelatedData.user.appAllowances
-        val allowedPackages = activeAllowedPackages(allowances, realTime.timeInMillis, realTime.shouldTrustTimeTemporarily)
+        val allowedPackages = AppAllowance.activePackages(allowances, realTime.timeInMillis, realTime.shouldTrustTimeTemporarily)
 
-        (categoryHandlings.map { it.dependsOnMaxTime } + allowances.filter { allowedPackages.contains(it.packageName) }.map { it.until }).minOrNull()?.let {
+        val appRules = userRelatedData.user.appRules
+        val ruleClosedPackages = AppRuleCheck.closedPackages(
+            rules = appRules,
+            allowedPackages = allowedPackages,
+            categoryIdsOf = getAppsWithCategories(appRules.map { it.packageName }, userRelatedData, blockingAtActivityLevel, userAndDeviceRelatedData.deviceRelatedData.deviceEntry.id)
+                .let { categories -> { packageName: String -> categories[packageName] ?: emptySet() } },
+            handlingOf = categoryHandlingCache::get,
+            now = realTime.timeInMillis,
+            timeZone = userRelatedData.timeZone,
+            trustTime = realTime.shouldTrustTimeTemporarily,
+            unsentToday = appLogic.appActivityReportLogic::unsentToday
+        )
+        val ruleDayChange = if (appRules.isEmpty()) null else nextDayStart(realTime.timeInMillis, userRelatedData.timeZone)
+
+        (categoryHandlings.map { it.dependsOnMaxTime } + allowances.filter { allowedPackages.contains(it.packageName) }.map { it.until } + listOfNotNull(ruleDayChange)).minOrNull()?.let {
             scheduleUpdate(it - realTime.timeInMillis)
         }
 
         if (
                 categoryIdsToAllow != lastAllowedCategoryList || categoryApps != lastCategoryApps ||
                 installedAppsModified.getAndSet(false) || defaultCategory != lastDefaultCategory ||
-                allowedPackages != lastAllowedPackages ||
+                allowedPackages != lastAllowedPackages || ruleClosedPackages != lastRuleClosedPackages ||
                 enableBlockingAtSystemLevel != lastEnableBlockingAtSystemLevel
         ) {
             val appsToBlock = if (enableBlockingAtSystemLevel) {
@@ -227,6 +248,7 @@ class SuspendAppsLogic(private val appLogic: AppLogic): Observer {
                             categoryIds = prepared[packageName] ?: emptySet(),
                             allowedCategoryIds = categoryIdsToAllow,
                             allowedPackages = allowedPackages,
+                            ruleClosedPackages = ruleClosedPackages,
                             handlingOf = categoryHandlingCache::get
                     )) appsToBlock.add(packageName)
                 }
@@ -255,6 +277,7 @@ class SuspendAppsLogic(private val appLogic: AppLogic): Observer {
             lastCategoryApps = categoryApps
             lastDefaultCategory = defaultCategory
             lastAllowedPackages = allowedPackages
+            lastRuleClosedPackages = ruleClosedPackages
             lastEnableBlockingAtSystemLevel = enableBlockingAtSystemLevel
         }
     }

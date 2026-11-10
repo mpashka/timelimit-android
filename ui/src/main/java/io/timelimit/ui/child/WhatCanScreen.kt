@@ -104,14 +104,15 @@ private fun CategoryCard(category: CategoryToday, askFor: (App) -> Unit) {
             category.limitedBy?.takeUnless { category.closedNow }?.let {
                 Text(stringResource(R.string.limited_by_parent_category, it), color = colors.secondary, fontSize = 16.sp)
             }
-            if (category.closedNow && category.apps.isNotEmpty()) {
+            val canAsk = { app: App -> category.closedNow || category.closedApps.contains(app.packageName) }
+            if (category.apps.any(canAsk)) {
                 Text(stringResource(R.string.child_tap_to_ask), color = colors.secondary, fontSize = 16.sp)
             }
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 category.apps.take(8).forEach { app ->
                     // @tag:child-request
-                    Box(if (category.closedNow) Modifier.clickable { askFor(app) } else Modifier) {
+                    Box(if (canAsk(app)) Modifier.clickable { askFor(app) } else Modifier) {
                         AppIcon(app.packageName, app.title, 32.dp)
                     }
                 }

@@ -1,6 +1,7 @@
 package io.timelimit.android.logic
 
 import io.timelimit.android.data.model.AppRule
+import io.timelimit.android.logic.blockingreason.CategoryItselfHandling
 import java.time.Instant
 import java.util.TimeZone
 
@@ -35,4 +36,21 @@ object AppRuleCheck {
 
         return check(rule, day.dayOfWeek.value - 1, day.toEpochDay().toInt(), ownUnsent)
     }
+
+    // The same lifting as BackgroundTaskLogic: an app allowance or the category's «разрешено до» opens the rule.
+    // @tag:app-rule
+    fun closedPackages(
+        rules: List<AppRule>,
+        allowedPackages: Set<String>,
+        categoryIdsOf: (String) -> Set<String>,
+        handlingOf: (String) -> CategoryItselfHandling,
+        now: Long,
+        timeZone: TimeZone,
+        trustTime: Boolean,
+        unsentToday: (String) -> Long
+    ): Set<String> = if (!trustTime) emptySet() else rules.map { it.packageName }.filter { packageName ->
+        !allowedPackages.contains(packageName) &&
+                categoryIdsOf(packageName).none { handlingOf(it).areLimitsTemporarilyDisabled } &&
+                check(rules, packageName, now, timeZone, unsentToday(packageName)) != Verdict.Open
+    }.toSet()
 }

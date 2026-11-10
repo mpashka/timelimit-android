@@ -49,6 +49,9 @@ data class AppAllowance(val packageName: String, val until: Long) {
         fun activeUntil(allowances: List<AppAllowance>, packageName: String?, now: Long, trustTime: Boolean): Long? =
             if (!trustTime || packageName == null) null
             else allowances.filter { it.packageName == packageName && it.until > now }.maxOfOrNull { it.until }
+
+        fun activePackages(allowances: List<AppAllowance>, now: Long, trustTime: Boolean): Set<String> =
+            if (!trustTime) emptySet() else allowances.filter { it.until > now }.map { it.packageName }.toSet()
     }
 }
 

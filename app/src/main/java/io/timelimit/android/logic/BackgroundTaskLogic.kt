@@ -896,6 +896,10 @@ class BackgroundTaskLogic(val appLogic: AppLogic) {
 
                 // handle blocking
                 if (blockedForegroundApp != null) {
+                    // own time reaching an app rule's limit changes no data SuspendAppsLogic observes
+                    // @tag:app-rule
+                    if (blockedOnlyByAppRule) appLogic.suspendAppsLogic.triggerUpdate()
+
                     openLockscreen(
                             blockedAppPackageName = blockedForegroundApp.packageName,
                             blockedAppActivityName = blockedForegroundApp.activityName,

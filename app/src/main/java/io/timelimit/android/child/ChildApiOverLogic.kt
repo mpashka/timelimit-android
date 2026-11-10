@@ -320,6 +320,17 @@ class ChildApiOverLogic(private val logic: AppLogic) : ChildApi {
         val nowMinute = getMinuteOfWeek(time.timeInMillis, user.timeZone)
         val minuteStart = time.timeInMillis - time.timeInMillis % MINUTE
         val appsByCategory = user.categoryApps.groupBy({ it.categoryId }, { it.appSpecifier.packageName })
+        // @tag:app-rule
+        val ruleClosed = AppRuleCheck.closedPackages(
+            rules = user.user.appRules,
+            allowedPackages = AppAllowance.activePackages(user.user.appAllowances, time.timeInMillis, time.shouldTrustTimeTemporarily),
+            categoryIdsOf = { packageName -> user.categoryApps.filter { it.appSpecifier.packageName == packageName }.map { it.categoryId }.toSet() },
+            handlingOf = cache::get,
+            now = time.timeInMillis,
+            timeZone = user.timeZone,
+            trustTime = time.shouldTrustTimeTemporarily,
+            unsentToday = logic.appActivityReportLogic::unsentToday
+        )
 
         val categories = user.sortedCategories().map { (_, category) ->
             val chain = CategoryChain(user, category.category.id, cache)
@@ -329,9 +340,11 @@ class ChildApiOverLogic(private val logic: AppLogic) : ChildApi {
                 remaining = chain.remaining,
                 closedNow = chain.closedNow,
                 apps = appsByCategory[category.category.id].orEmpty().distinct()
+                    .sortedByDescending { ruleClosed.contains(it) }
                     .mapNotNull { packageName -> logic.platformIntegration.getLocalAppTitle(packageName)?.let { App(packageName, it) } },
                 week = limits(category, time.timeInMillis, user.timeZone).week,
                 limitedBy = chain.limitedBy,
+                closedApps = ruleClosed,
             )
         }
         val nextMode = user.categories
