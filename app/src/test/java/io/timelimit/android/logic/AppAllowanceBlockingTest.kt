@@ -1,6 +1,7 @@
 package io.timelimit.android.logic
 
 import io.timelimit.android.data.customtypes.ImmutableBitmask
+import io.timelimit.android.data.model.AppAllowance
 import io.timelimit.android.data.model.Category
 import io.timelimit.android.data.model.User
 import io.timelimit.android.data.model.UserType
@@ -48,5 +49,36 @@ class AppAllowanceBlockingTest {
         assertTrue(handling(wholeWeekMode = true, closedByParent = false).shouldBlockActivities(appAllowed = false))
         assertFalse(handling(wholeWeekMode = true, closedByParent = false).shouldBlockActivities(appAllowed = true))
         assertTrue(handling(wholeWeekMode = false, closedByParent = true).shouldBlockActivities(appAllowed = true))
+    }
+
+    @Test
+    fun anAllowedAppIsNotFrozenUntilItsAllowanceEnds() {
+        val now = 1_790_000_000_000
+        val allowances = listOf(AppAllowance("com.mojang.minecraftpe", until = now + 30 * 60_000))
+        val modeHandling = handling(wholeWeekMode = true, closedByParent = false)
+
+        fun suspended(at: Long) = SuspendAppsLogic.shouldSuspend(
+            packageName = "com.mojang.minecraftpe",
+            categoryIds = setOf("games1"),
+            allowedCategoryIds = emptySet(),
+            allowedPackages = SuspendAppsLogic.activeAllowedPackages(allowances, at, trustTime = true),
+            handlingOf = { modeHandling }
+        )
+
+        assertFalse(suspended(at = now))
+        assertTrue(suspended(at = now + 30 * 60_000))
+    }
+
+    @Test
+    fun anAllowanceDoesNotUnfreezeWhatTheParentClosed() {
+        val closedHandling = handling(wholeWeekMode = false, closedByParent = true)
+
+        assertTrue(SuspendAppsLogic.shouldSuspend(
+            packageName = "com.mojang.minecraftpe",
+            categoryIds = setOf("games1"),
+            allowedCategoryIds = emptySet(),
+            allowedPackages = setOf("com.mojang.minecraftpe"),
+            handlingOf = { closedHandling }
+        ))
     }
 }

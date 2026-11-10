@@ -341,6 +341,12 @@ data class CategoryItselfHandling (
     // blockAllNotifications is only relevant if premium or local mode
     // val shouldBlockNotifications = !okAll || blockAllNotifications
     val shouldBlockAtSystemLevel = !okBasic
+
+    // The system-level half of shouldBlockActivities(appAllowed): network and current device are never frozen.
+    // @tag:app-allowance
+    fun shouldBlockAtSystemLevel(appAllowed: Boolean): Boolean =
+        if (appAllowed) !(okByBattery && okByTempBlocking && !missingNetworkTime)
+        else shouldBlockAtSystemLevel
     val systemLevelBlockingReason: BlockingReason = if (!okByBattery)
         BlockingReason.BatteryLimit
     else if (!okByTempBlocking)

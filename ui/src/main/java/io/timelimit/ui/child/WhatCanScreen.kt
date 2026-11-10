@@ -1,7 +1,9 @@
 package io.timelimit.ui.child
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -28,6 +30,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.timelimit.api.App
 import io.timelimit.api.CategoryToday
 import io.timelimit.api.ChildApi
 import io.timelimit.api.Today
@@ -37,14 +40,14 @@ import io.timelimit.ui.R
 /** C2·в of docs/specification/mockups/child.html: what can be used now, opened from the widget and from the launcher. */
 // @tag:new-ui
 @Composable
-fun WhatCanScreen(api: ChildApi, openParent: () -> Unit) {
+fun WhatCanScreen(api: ChildApi, openParent: () -> Unit, askFor: (App) -> Unit) {
     val today by api.today.collectAsState(initial = null)
 
-    ChildTheme { today?.let { WhatCan(it, openParent) } }
+    ChildTheme { today?.let { WhatCan(it, openParent, askFor) } }
 }
 
 @Composable
-fun WhatCan(today: Today, openParent: () -> Unit = {}) {
+fun WhatCan(today: Today, openParent: () -> Unit = {}, askFor: (App) -> Unit = {}) {
     val colors = LocalChildColors.current
 
     Column(
@@ -63,7 +66,7 @@ fun WhatCan(today: Today, openParent: () -> Unit = {}) {
 
         if (today.categories.isEmpty()) Text(stringResource(R.string.child_no_categories), color = colors.secondary, fontSize = 18.sp)
 
-        today.categories.forEach { CategoryCard(it) }
+        today.categories.forEach { CategoryCard(it, askFor) }
 
         today.waiting.forEach { waiting ->
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -83,7 +86,7 @@ fun WhatCan(today: Today, openParent: () -> Unit = {}) {
 }
 
 @Composable
-private fun CategoryCard(category: CategoryToday) {
+private fun CategoryCard(category: CategoryToday, askFor: (App) -> Unit) {
     val colors = LocalChildColors.current
     val accent = when {
         category.closedNow -> colors.closed
@@ -101,9 +104,17 @@ private fun CategoryCard(category: CategoryToday) {
             category.limitedBy?.takeUnless { category.closedNow }?.let {
                 Text(stringResource(R.string.limited_by_parent_category, it), color = colors.secondary, fontSize = 16.sp)
             }
+            if (category.closedNow && category.apps.isNotEmpty()) {
+                Text(stringResource(R.string.child_tap_to_ask), color = colors.secondary, fontSize = 16.sp)
+            }
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                category.apps.take(8).forEach { AppIcon(it.packageName, it.title, 32.dp) }
+                category.apps.take(8).forEach { app ->
+                    // @tag:child-request
+                    Box(if (category.closedNow) Modifier.clickable { askFor(app) } else Modifier) {
+                        AppIcon(app.packageName, app.title, 32.dp)
+                    }
+                }
             }
         }
         Text(

@@ -68,6 +68,7 @@
     <string name="child_what_can_title">Что сейчас можно</string>
     <string name="child_no_limit">без лимита</string>
     <string name="child_closed_now">закрыто</string>
+    <string name="child_tap_to_ask">нажми на приложение, чтобы попросить</string>
     <string name="child_mode_next_named">В %1$s %2$s — закроется до %3$s</string>
     <string name="child_mode_next">В %1$s всё закроется до %2$s</string>
     <string name="child_waiting_request">%1$s — просьба ждёт ответа с %2$s</string>

@@ -15,12 +15,12 @@
  */
 package io.timelimit.android.logic
 
-import io.timelimit.android.child.UiChoice
 
 import io.timelimit.android.async.Threads
 import io.timelimit.android.coroutines.runAsyncExpectForever
 import io.timelimit.android.data.invalidation.Observer
 import io.timelimit.android.data.invalidation.Table
+import io.timelimit.android.data.model.AppAllowance
 import io.timelimit.android.data.model.CategoryApp
 import io.timelimit.android.data.model.ConsentFlags
 import io.timelimit.android.data.model.ExperimentalFlags
@@ -30,12 +30,33 @@ import io.timelimit.android.integration.platform.ProtectionLevel
 import io.timelimit.android.integration.platform.android.AndroidFeatures
 import io.timelimit.android.integration.platform.android.AndroidIntegrationApps
 import io.timelimit.android.logic.blockingreason.CategoryHandlingCache
+import io.timelimit.android.logic.blockingreason.CategoryItselfHandling
 import java.lang.ref.WeakReference
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
 class SuspendAppsLogic(private val appLogic: AppLogic): Observer {
+    companion object {
+        // @tag:app-allowance
+        fun activeAllowedPackages(allowances: List<AppAllowance>, now: Long, trustTime: Boolean): Set<String> =
+            allowances.filter { trustTime && it.until > now }.map { it.packageName }.toSet()
+
+        // @tag:app-allowance
+        fun shouldSuspend(
+            packageName: String,
+            categoryIds: Set<String>,
+            allowedCategoryIds: Set<String>,
+            allowedPackages: Set<String>,
+            handlingOf: (String) -> CategoryItselfHandling
+        ): Boolean {
+            val openByAllowance = allowedPackages.contains(packageName) &&
+                    categoryIds.none { handlingOf(it).shouldBlockAtSystemLevel(appAllowed = true) }
+
+            return !openByAllowance && categoryIds.none { allowedCategoryIds.contains(it) }
+        }
+    }
+
     private var lastDefaultCategory: String? = null
     private var lastAllowedPackages: Set<String>? = null
     private var lastAllowedCategoryList = emptySet<String>()
@@ -113,11 +134,7 @@ class SuspendAppsLogic(private val appLogic: AppLogic): Observer {
 
         val isRestrictedUser = userAndDeviceRelatedData?.userRelatedData?.user?.type == UserType.Child
         applyDesktopModeHidden(isRestrictedUser)
-        // @tag:new-ui
-        val enableBlockingAtSystemLevel = UiChoice.suspendsApps(
-            systemLevelBlocking = userAndDeviceRelatedData?.deviceRelatedData?.isExperimentalFlagSetSync(ExperimentalFlags.SYSTEM_LEVEL_BLOCKING) ?: false,
-            newUi = UiChoice.isNew(appLogic.context)
-        )
+        val enableBlockingAtSystemLevel = userAndDeviceRelatedData?.deviceRelatedData?.isExperimentalFlagSetSync(ExperimentalFlags.SYSTEM_LEVEL_BLOCKING) ?: false
         val hasManagedFeatures = featureCategoryApps.isNotEmpty()
         val enableBlocking = isRestrictedUser && (enableBlockingAtSystemLevel || hasManagedFeatures)
 
@@ -186,10 +203,10 @@ class SuspendAppsLogic(private val appLogic: AppLogic): Observer {
         } while (didModify)
 
         // @tag:app-allowance
-        val allowances = userRelatedData.user.appAllowances.filter { realTime.shouldTrustTimeTemporarily && it.until > realTime.timeInMillis }
-        val allowedPackages = allowances.map { it.packageName }.toSet()
+        val allowances = userRelatedData.user.appAllowances
+        val allowedPackages = activeAllowedPackages(allowances, realTime.timeInMillis, realTime.shouldTrustTimeTemporarily)
 
-        (categoryHandlings.map { it.dependsOnMaxTime } + allowances.map { it.until }).minOrNull()?.let {
+        (categoryHandlings.map { it.dependsOnMaxTime } + allowances.filter { allowedPackages.contains(it.packageName) }.map { it.until }).minOrNull()?.let {
             scheduleUpdate(it - realTime.timeInMillis)
         }
 
@@ -204,18 +221,14 @@ class SuspendAppsLogic(private val appLogic: AppLogic): Observer {
                 val prepared = getAppsWithCategories(installedApps, userRelatedData, blockingAtActivityLevel, userAndDeviceRelatedData.deviceRelatedData.deviceEntry.id)
                 val appsToBlock = mutableListOf<String>()
 
-                installedApps.forEach { packageName ->
-                    val appCategories = prepared[packageName] ?: emptySet()
-
-                    val allowedDespiteCategories = allowedPackages.contains(packageName) && appCategories.none { categoryId ->
-                        categoryHandlingCache.get(categoryId).let { !it.okByBattery || !it.okByTempBlocking }
-                    }
-
-                    if (!allowedDespiteCategories && appCategories.find { categoryId -> categoryIdsToAllow.contains(categoryId) } == null) {
-                        if (!AndroidIntegrationApps.appsToNotSuspend.contains(packageName)) {
-                            appsToBlock.add(packageName)
-                        }
-                    }
+                installedApps.filterNot { AndroidIntegrationApps.appsToNotSuspend.contains(it) }.forEach { packageName ->
+                    if (shouldSuspend(
+                            packageName = packageName,
+                            categoryIds = prepared[packageName] ?: emptySet(),
+                            allowedCategoryIds = categoryIdsToAllow,
+                            allowedPackages = allowedPackages,
+                            handlingOf = categoryHandlingCache::get
+                    )) appsToBlock.add(packageName)
                 }
 
                 appsToBlock

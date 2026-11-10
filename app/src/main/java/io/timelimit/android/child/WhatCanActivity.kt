@@ -26,7 +26,8 @@ class WhatCanActivity : ComponentActivity() {
         setContent {
             WhatCanScreen(
                 api = ChildApiOverLogic.with(this),
-                openParent = { startActivity(UiChoice.oldMainIntent(this)) }
+                openParent = { startActivity(UiChoice.oldMainIntent(this)) },
+                askFor = { ChildLockActivity.start(this, it.packageName) }
             )
         }
     }
