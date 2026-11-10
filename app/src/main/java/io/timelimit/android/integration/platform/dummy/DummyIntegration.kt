@@ -173,6 +173,8 @@ class DummyIntegration(
 
     override fun getFeatures(): List<PlatformFeature> = emptyList()
 
+    override fun setDesktopModeHidden(hidden: Boolean) = Unit
+
     override fun setLockTaskPackages(packageNames: List<String>) = false
 
     override fun getBatteryStatus(): BatteryStatus = batteryStatus.value!!

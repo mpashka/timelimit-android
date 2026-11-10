@@ -179,6 +179,8 @@
             </intent-filter>
         </receiver>
 
+        <receiver android:name=".integration.platform.android.receiver.ProcessWatchdogReceiver" android:exported="false" />
+
         <service
             android:foregroundServiceType="systemExempted"
             android:name=".integration.platform.android.BackgroundService"

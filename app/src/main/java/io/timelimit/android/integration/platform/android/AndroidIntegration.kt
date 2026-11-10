@@ -74,6 +74,13 @@ class AndroidIntegration(context: Context): PlatformIntegration(maximumProtectio
     companion object {
         private const val LOG_TAG = "AndroidIntegration"
 
+        // @tag:device-owner @tag:bypass-audit
+        private val DESKTOP_MODE_PACKAGES = listOf(
+            "com.zui.desktoplauncher",
+            "com.motorola.mobiledesktop",
+            "com.motorola.mobiledesktop.core"
+        )
+
         val maximumProtectionLevel: ProtectionLevel
 
         init {
@@ -590,6 +597,7 @@ class AndroidIntegration(context: Context): PlatformIntegration(maximumProtectio
                 enableSystemApps()
                 stopSuspendingForAllApps()
                 setBlockedFeatures(emptySet())
+                setDesktopModeHidden(false)
             }
 
             true
@@ -605,6 +613,13 @@ class AndroidIntegration(context: Context): PlatformIntegration(maximumProtectio
             (!BuildConfig.storeCompilant)
         ) AndroidFeatures.applyBlockedFeatures(features, policyManager, deviceAdmin)
         else false
+    }
+
+    override fun setDesktopModeHidden(hidden: Boolean) {
+        if (!policyManager.isDeviceOwnerApp(context.packageName) || BuildConfig.storeCompilant) return
+
+        // returns false for a package that is not installed, which is the normal case off Lenovo
+        DESKTOP_MODE_PACKAGES.forEach { policyManager.setApplicationHidden(deviceAdmin, it, hidden) }
     }
 
     override fun getFeatures(): List<PlatformFeature> {

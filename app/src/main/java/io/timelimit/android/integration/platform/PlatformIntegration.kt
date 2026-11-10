@@ -66,6 +66,7 @@ abstract class PlatformIntegration(
     // returns true on success
     abstract fun setBlockedFeatures(features: Set<String>): Boolean
     abstract fun getFeatures(): List<PlatformFeature>
+    abstract fun setDesktopModeHidden(hidden: Boolean)
     // returns true on success
     abstract fun setLockTaskPackages(packageNames: List<String>): Boolean
 

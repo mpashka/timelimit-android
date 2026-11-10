@@ -49,6 +49,7 @@ class SuspendAppsLogic(private val appLogic: AppLogic): Observer {
     private var lastEnableBlockingAtSystemLevel = false
     private var lastSuspendedApps: List<String>? = null
     private var lastBlockedFeatures: Set<String>? = null
+    private var lastDesktopModeHidden: Boolean? = null
     private val userAndDeviceRelatedDataLive = appLogic.database.derivedDataDao().getUserAndDeviceRelatedDataLive()
     private var didLoadUserAndDeviceRelatedData = false
 
@@ -96,6 +97,7 @@ class SuspendAppsLogic(private val appLogic: AppLogic): Observer {
             lastCategoryApps = emptyList()
             lastSuspendedApps = emptyList()
             lastBlockedFeatures = emptySet()
+            lastDesktopModeHidden = null
 
             return
         }
@@ -110,6 +112,7 @@ class SuspendAppsLogic(private val appLogic: AppLogic): Observer {
             }
 
         val isRestrictedUser = userAndDeviceRelatedData?.userRelatedData?.user?.type == UserType.Child
+        applyDesktopModeHidden(isRestrictedUser)
         // @tag:new-ui
         val enableBlockingAtSystemLevel = UiChoice.suspendsApps(
             systemLevelBlocking = userAndDeviceRelatedData?.deviceRelatedData?.isExperimentalFlagSetSync(ExperimentalFlags.SYSTEM_LEVEL_BLOCKING) ?: false,
@@ -316,6 +319,15 @@ class SuspendAppsLogic(private val appLogic: AppLogic): Observer {
             appLogic.platformIntegration.setSuspendedApps(packageNames, true)
             lastSuspendedApps = packageNames
         }
+    }
+
+    // @tag:device-owner @tag:bypass-audit
+    private fun applyDesktopModeHidden(hidden: Boolean) {
+        if (hidden == lastDesktopModeHidden) return
+
+        appLogic.platformIntegration.setDesktopModeHidden(hidden)
+
+        lastDesktopModeHidden = hidden
     }
 
     private fun applyBlockedFeatures(featureNames: Set<String>) {

@@ -24,6 +24,7 @@ import io.timelimit.android.coroutines.runAsync
 import io.timelimit.android.data.RoomDatabase
 import io.timelimit.android.data.backup.DatabaseBackup
 import io.timelimit.android.integration.platform.android.AndroidIntegration
+import io.timelimit.android.integration.platform.android.receiver.ProcessWatchdogReceiver
 import io.timelimit.android.integration.time.RealTimeApi
 import io.timelimit.android.sync.network.api.HttpServerApi
 import io.timelimit.android.sync.websocket.networkstatus.NetworkStatusUtil
@@ -65,6 +66,8 @@ object AndroidAppLogic {
                     DatabaseBackup.with(safeContext).tryRestoreDatabaseBackupAsyncAndWait()
                     isInitialized.value = true
                 }
+
+                ProcessWatchdogReceiver.schedule(safeContext)
             }
         } else {
             // at a background thread
