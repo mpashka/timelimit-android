@@ -57,6 +57,10 @@ class FakeChildApi : ChildApi {
             waiting = listOf(WaitingRequest(roblox, NOW - 6 * MINUTE)),
             nextMode = ModeWindow(ModeKind.Sleep, NOW + 160 * MINUTE, NOW + 760 * MINUTE),
         )
+
+        // @tag:child-homescreen
+        val exampleHome: List<AppAccess> = listOf(brawlStars, chrome, camera, duolingo, youtube, uchiru)
+            .map { AppAccess.Open(it, null, null) } + closed(CloseReason.LimitOver, Request.None)
     }
 
     private val request = MutableStateFlow<Request>(Request.None)
@@ -65,6 +69,8 @@ class FakeChildApi : ChildApi {
         request.map { closed(CloseReason.LimitOver, it) }
 
     override val today: Flow<Today> = MutableStateFlow(exampleToday)
+
+    override val home: Flow<List<AppAccess>> = MutableStateFlow(exampleHome)
 
     override suspend fun ask(packageName: String, word: String) {
         request.value = Request.Sent(System.currentTimeMillis(), word)

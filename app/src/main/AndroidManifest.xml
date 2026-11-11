@@ -129,7 +129,6 @@
             android:autoRemoveFromRecents="true"
             android:taskAffinity=":dummyhome"
             android:launchMode="singleTop"
-            android:theme="@style/AppHomescreenTheme"
             android:name=".ui.homescreen.HomescreenActivity">
 
             <intent-filter>

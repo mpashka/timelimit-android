@@ -15,135 +15,50 @@
  */
 package io.timelimit.android.ui.homescreen
 
-import android.content.ActivityNotFoundException
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Bundle
-import android.view.LayoutInflater
-import android.view.View
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.Observer
-import androidx.lifecycle.ViewModelProvider
-import io.timelimit.android.R
-import io.timelimit.android.databinding.ActivityHomescreenBinding
-import io.timelimit.android.databinding.ActivityHomescreenItemBinding
+import androidx.activity.ComponentActivity
+import androidx.activity.addCallback
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import io.timelimit.android.child.ChildApiOverLogic
+import io.timelimit.android.child.ChildLockActivity
+import io.timelimit.android.child.UiChoice
+import io.timelimit.android.child.WhatCanActivity
+import io.timelimit.android.ui.IsAppInForeground
+import io.timelimit.ui.child.HomeScreen
 
-class HomescreenActivity: AppCompatActivity() {
-    companion object {
-        private const val FORCE_SELECTION = "forceSelection"
-    }
-
-    private val model: HomescreenModel by lazy { ViewModelProvider(this).get(HomescreenModel::class.java) }
-    private lateinit var binding: ActivityHomescreenBinding
-
+// @tag:child-homescreen
+class HomescreenActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        // the home screen stays put: "back" here would only make the system start it again
+        onBackPressedDispatcher.addCallback(this) {}
+        setContent {
+            HomeScreen(
+                api = ChildApiOverLogic.with(this),
+                launch = { app ->
+                    val intent = packageManager.getLaunchIntentForPackage(app.packageName)
 
-        binding = ActivityHomescreenBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-
-        model.handleLaunchIfNotYetExecuted(intent.getBooleanExtra(FORCE_SELECTION, false))
-
-        model.status.observe(this, Observer { status ->
-            when (status) {
-                SelectionListHomescreenStatus -> {
-                    hideProgress()
-
-                    initOptionList()
-                }
-                is TryLaunchHomescreenStatus -> {
-                    hideOptionList()
-                    hideProgress()
-
-                    if (!status.didTry) {
-                        status.didTry = true
-
-                        try {
-                            startActivity(HomescreenUtil.openHomescreenIntent().setComponent(status.component))
-                        } catch (ex: ActivityNotFoundException) {
-                            model.showSelectionList()
-                        }
-                    }
-                }
-                is DelayHomescreenStatus -> {
-                    hideOptionList()
-
-                    showProgress(status.progress)
-                }
-            }
-        })
-    }
-
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-
-        model.handleLaunch(intent?.getBooleanExtra(FORCE_SELECTION, false) ?: false)
-    }
-
-    private fun initOptionList() {
-        binding.maincard.visibility = View.VISIBLE
-
-        val options = HomescreenUtil.launcherOptions(this)
-
-        binding.launcherOptions.removeAllViews()
-
-        options.forEach { option ->
-            val view = ActivityHomescreenItemBinding.inflate(LayoutInflater.from(this), binding.launcherOptions, true)
-
-            view.label = try {
-                packageManager.getApplicationLabel(
-                        packageManager.getApplicationInfo(option.packageName, 0)
-                ).toString()
-            } catch (ex: PackageManager.NameNotFoundException) {
-                null
-            } ?: option.packageName
-
-            try {
-                view.icon.setImageDrawable(packageManager.getApplicationIcon(option.packageName))
-            } catch (ex: Exception) {
-                view.icon.setImageResource(R.mipmap.ic_launcher_round)
-            }
-
-            view.root.setOnClickListener {
-                try {
-                    startActivity(
-                            HomescreenUtil.openHomescreenIntent().setComponent(option)
-                    )
-
-                    hideOptionList()
-                    model.saveDefaultOption(option)
-                } catch (ex: ActivityNotFoundException) {
-                    Toast.makeText(this, R.string.error_general, Toast.LENGTH_SHORT).show()
-                }
-            }
+                    if (intent != null) startActivity(intent)
+                    else Toast.makeText(this, getString(io.timelimit.ui.R.string.child_home_cannot_launch, app.title), Toast.LENGTH_SHORT).show()
+                },
+                askFor = { ChildLockActivity.start(this, it.packageName) },
+                openWhatCan = { startActivity(Intent(this, WhatCanActivity::class.java)) },
+                openParent = { startActivity(UiChoice.oldMainIntent(this)) },
+            )
         }
     }
 
-    private fun hideOptionList() {
-        binding.maincard.visibility = View.GONE
-
-        binding.launcherOptions.removeAllViews()
+    override fun onStart() {
+        super.onStart()
+        IsAppInForeground.reportStart()
     }
 
-    private fun showProgress(progresss: Int) {
-        binding.progressCard.visibility = View.VISIBLE
-        binding.progressBar.progress = progresss
-    }
-
-    private fun hideProgress() {
-        binding.progressCard.visibility = View.GONE
-    }
-
-    override fun onResume() {
-        super.onResume()
-
-        model.handleResume()
-    }
-
-    override fun onPause() {
-        super.onPause()
-
-        model.handlePause()
+    override fun onStop() {
+        super.onStop()
+        IsAppInForeground.reportStop()
     }
 }

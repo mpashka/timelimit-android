@@ -1,6 +1,7 @@
 package io.timelimit.android.child
 
 import android.content.Context
+import android.content.Intent
 import androidx.lifecycle.asFlow
 import io.timelimit.android.data.IdGenerator
 import io.timelimit.android.data.extensions.sortedCategories
@@ -74,6 +75,21 @@ class ChildApiOverLogic(private val logic: AppLogic) : ChildApi {
     override val today: Flow<Today> = combine(userAndDevice, tick) { data, _ ->
         computeToday(data)
     }.distinctUntilChanged().flowOn(Dispatchers.Default)
+
+    // ponytail: every launchable app is recomputed on each tick, fine for a tablet's hundred apps
+    // @tag:child-homescreen
+    override val home: Flow<List<AppAccess>> = combine(
+        userAndDevice, users, logic.currentDeviceLogic.borrowedCurrentDevice, tick
+    ) { data, users, _, _ ->
+        val hasParentCode = logic.database.config().getParentCodeSecretSync() != null
+
+        launchablePackages().map { computeAccess(data, users, it, hasParentCode) }
+    }.distinctUntilChanged().flowOn(Dispatchers.Default)
+
+    private fun launchablePackages(): List<String> = logic.context.packageManager
+        .queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0)
+        .map { it.activityInfo.packageName }
+        .distinct()
 
     // @tag:child-request
     override suspend fun ask(packageName: String, word: String) {
@@ -162,6 +178,7 @@ class ChildApiOverLogic(private val logic: AppLogic) : ChildApi {
         data: DeviceAndUserRelatedData?,
         users: List<User>,
         packageName: String,
+        hasParentCode: Boolean = logic.database.config().getParentCodeSecretSync() != null,
     ): AppAccess {
         val app = app(packageName)
         val user = data?.userRelatedData
@@ -175,7 +192,7 @@ class ChildApiOverLogic(private val logic: AppLogic) : ChildApi {
         val blocking = categories.find { it.shouldBlockActivities(allowedUntil != null) }
         val parentName = { id: String -> users.find { it.id == id }?.name ?: "" }
         val request = ChildRequestStates.forApp(user.user.childRequests, packageName, time.timeInMillis, parentName)
-        val grant = if (logic.database.config().getParentCodeSecretSync() == null) null
+        val grant = if (!hasParentCode) null
         else GrantChoice(blocking?.createdWithCategoryRelatedData?.category?.title, dayEnd(user, time.timeInMillis))
 
         return when {

@@ -683,19 +683,25 @@ class AndroidIntegration(context: Context): PlatformIntegration(maximumProtectio
                 PackageManager.DONT_KILL_APP
         )
 
+        if (BuildConfig.storeCompilant || !policyManager.isDeviceOwnerApp(context.packageName)) return
+
         if (enable) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && (!BuildConfig.storeCompilant)) {
-                if (policyManager.isDeviceOwnerApp(context.packageName)) {
-                    policyManager.addPersistentPreferredActivity(
-                            deviceAdmin,
-                            IntentFilter(Intent.ACTION_MAIN).apply {
-                                addCategory(Intent.CATEGORY_HOME)
-                                addCategory(Intent.CATEGORY_DEFAULT)
-                            },
-                            homescreen
-                    )
-                }
-            }
+            policyManager.addPersistentPreferredActivity(
+                    deviceAdmin,
+                    IntentFilter(Intent.ACTION_MAIN).apply {
+                        addCategory(Intent.CATEGORY_HOME)
+                        addCategory(Intent.CATEGORY_DEFAULT)
+                    },
+                    homescreen
+            )
+        } else {
+            policyManager.clearPackagePersistentPreferredActivities(deviceAdmin, context.packageName)
+        }
+
+        // @tag:child-homescreen
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            if (enable) policyManager.addUserRestriction(deviceAdmin, UserManager.DISALLOW_CONFIG_DEFAULT_APPS)
+            else policyManager.clearUserRestriction(deviceAdmin, UserManager.DISALLOW_CONFIG_DEFAULT_APPS)
         }
     }
 

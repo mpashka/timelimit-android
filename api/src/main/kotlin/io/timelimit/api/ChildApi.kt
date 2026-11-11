@@ -12,6 +12,10 @@ interface ChildApi {
 
     val today: Flow<Today>
 
+    /** Every app this tablet can launch, with its access now: what the child's home screen shows. */
+    // @tag:child-homescreen
+    val home: Flow<List<AppAccess>>
+
     // @tag:child-request
     suspend fun ask(packageName: String, word: String)
 
