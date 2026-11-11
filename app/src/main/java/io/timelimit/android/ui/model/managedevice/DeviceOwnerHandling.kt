@@ -181,7 +181,7 @@ object DeviceOwnerHandling {
                     )
 
                     if (result == SnackbarResult.ActionPerformed) updateState {
-                        it.copy(dialog = OwnerState.ErrorDialog(ExceptionUtil.formatInterpreted(logic.context, ex)))
+                        it.copy(dialog = OwnerState.ErrorDialog(ExceptionUtil.format(ex)))
                     }
                 }
             }

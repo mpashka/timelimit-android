@@ -15,26 +15,11 @@
  */
 package io.timelimit.android.ui.diagnose.exception
 
-import android.content.Context
-import io.timelimit.android.R
-import io.timelimit.android.integration.platform.android.foregroundapp.InstanceIdForegroundAppHelper.InstanceIdException
 import java.io.PrintWriter
 import java.io.StringWriter
 
 object ExceptionUtil {
-    fun formatInterpreted(context: Context, tr: Throwable): String {
-        val explain = when (tr) {
-            is InstanceIdException.EventsNotSortedByTimestamp -> context.getString(R.string.background_logic_errpr_detailed_instanceid_sorting)
-            else -> null
-        }
-
-        val tr2 = formatSimple(tr)
-
-        return if (explain != null) "$explain\n\n$tr2"
-        else tr2
-    }
-
-    private fun formatSimple(tr: Throwable): String = StringWriter().let { sw ->
+    fun format(tr: Throwable): String = StringWriter().let { sw ->
         PrintWriter(sw).let { pw ->
             tr.printStackTrace(pw)
             pw.flush()

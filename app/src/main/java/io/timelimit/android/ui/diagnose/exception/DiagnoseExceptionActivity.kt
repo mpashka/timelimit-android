@@ -28,7 +28,7 @@ class DiagnoseExceptionActivity: FragmentActivity() {
 
         if (ex != null) setContent {
             DiagnoseExceptionDialog(
-                message = ExceptionUtil.formatInterpreted(this, ex),
+                message = ExceptionUtil.format(ex),
                 close = { finish() }
             )
         } else finish()

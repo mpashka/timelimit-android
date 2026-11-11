@@ -37,7 +37,7 @@ class DiagnoseExceptionDialogFragment: DialogFragment() {
     }
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        val message = ExceptionUtil.formatInterpreted(requireContext(), requireArguments().getSerializable(EXCEPTION) as Exception)
+        val message = ExceptionUtil.format(requireArguments().getSerializable(EXCEPTION) as Exception)
 
         return AlertDialog.Builder(requireContext(), theme)
             .setMessage(message)

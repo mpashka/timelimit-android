@@ -369,7 +369,7 @@ object SetupParentHandling {
                     )
 
                     if (result == SnackbarResult.ActionPerformed) updateState {
-                        it.copy(error = ExceptionUtil.formatInterpreted(logic.context, ex))
+                        it.copy(error = ExceptionUtil.format(ex))
                     }
                 }
             } finally {

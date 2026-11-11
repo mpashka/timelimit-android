@@ -181,7 +181,7 @@ object AccountDeletion {
                             )
 
                             if (result == SnackbarResult.ActionPerformed) updateState {
-                                it.copy(errorDialog = ExceptionUtil.formatInterpreted(logic.context, ex))
+                                it.copy(errorDialog = ExceptionUtil.format(ex))
                             }
                         }
                     } finally {

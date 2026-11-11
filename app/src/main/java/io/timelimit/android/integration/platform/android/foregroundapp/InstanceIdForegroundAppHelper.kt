@@ -76,12 +76,13 @@ class InstanceIdForegroundAppHelper(context: Context): UsageStatsForegroundAppHe
                     var isFirstEvent = true
 
                     while (events.loadNextEvent()) {
-                        // check the consistency
+                        // @tag:usage-stats-replay
+                        // History jumped back: HyperOS replays the setup block after a factory reset,
+                        // or the clock was set back. Throwing here stopped all blocking until the bad
+                        // block left the 3-day window; start over as after DEVICE_STARTUP instead.
                         if (events.timestamp < lastEventTimestamp - TOLERANCE && !isFirstEvent) {
-                            throw InstanceIdException.EventsNotSortedByTimestamp(
-                                currentMin = lastEventTimestamp,
-                                eventTimestamp = events.timestamp
-                            )
+                            apps.clear()
+                            lastEventTimestamp = events.timestamp
                         }
 
                         // process the event
@@ -119,11 +120,5 @@ class InstanceIdForegroundAppHelper(context: Context): UsageStatsForegroundAppHe
         }
 
         return result
-    }
-
-    sealed class InstanceIdException(message: String): RuntimeException(message) {
-        class EventsNotSortedByTimestamp(currentMin: Long, eventTimestamp: Long): InstanceIdException(
-            "events not sorted by timestamp; expected at least $currentMin but got $eventTimestamp"
-        )
     }
 }
