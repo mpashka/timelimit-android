@@ -53,6 +53,7 @@ import java.util.TimeZone
 class ChildApiOverLogic(private val logic: AppLogic) : ChildApi {
     companion object {
         private const val MINUTE = 60_000L
+        private const val SETTINGS_PACKAGE = "com.android.settings"
 
         private var instance: ChildApiOverLogic? = null
 
@@ -86,10 +87,17 @@ class ChildApiOverLogic(private val logic: AppLogic) : ChildApi {
         launchablePackages().map { computeAccess(data, users, it, hasParentCode) }
     }.distinctUntilChanged().flowOn(Dispatchers.Default)
 
-    private fun launchablePackages(): List<String> = logic.context.packageManager
-        .queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0)
-        .map { it.activityInfo.packageName }
-        .distinct()
+    /** Other home screens are left out: from this one the child would only switch to them. */
+    private fun launchablePackages(): List<String> {
+        val packageManager = logic.context.packageManager
+        fun packagesOf(category: String) = packageManager
+            .queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(category), 0)
+            .map { it.activityInfo.packageName }
+        // "com.android.settings" carries a fallback home screen, yet it is an app the child needs
+        val homeScreens = packagesOf(Intent.CATEGORY_HOME).toSet() - SETTINGS_PACKAGE
+
+        return packagesOf(Intent.CATEGORY_LAUNCHER).distinct() - homeScreens
+    }
 
     // @tag:child-request
     override suspend fun ask(packageName: String, word: String) {
