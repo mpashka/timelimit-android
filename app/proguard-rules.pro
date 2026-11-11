@@ -54,7 +54,9 @@
 -keepnames class org.whispersystems.curve25519.JavaCurve25519Provider {}
 -keepnames class org.whispersystems.curve25519.J2meCurve25519Provider {}
 -keepnames class org.whispersystems.curve25519.OpportunisticCurve25519Provider {}
--keep class org.whispersystems.curve25519.NativeCurve25519Provider {}
--keep class org.whispersystems.curve25519.JavaCurve25519Provider {}
--keep class org.whispersystems.curve25519.J2meCurve25519Provider {}
--keep class org.whispersystems.curve25519.OpportunisticCurve25519Provider {}
+# конструкторы названы отдельно: в R8 full mode AGP 9 «-keep class X {}» сам класс сохраняет,
+# а конструктор по умолчанию — нет, и провайдер, который создаётся отражением, не находится
+-keep class org.whispersystems.curve25519.NativeCurve25519Provider { <init>(...); }
+-keep class org.whispersystems.curve25519.JavaCurve25519Provider { <init>(...); }
+-keep class org.whispersystems.curve25519.J2meCurve25519Provider { <init>(...); }
+-keep class org.whispersystems.curve25519.OpportunisticCurve25519Provider { <init>(...); }

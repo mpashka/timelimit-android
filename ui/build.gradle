@@ -1,24 +1,20 @@
 plugins {
     id 'com.android.library'
-    id 'org.jetbrains.kotlin.android'
     id 'org.jetbrains.kotlin.plugin.compose'
 }
 
 android {
-    namespace 'io.timelimit.ui'
-    compileSdk 36
+    namespace = 'io.timelimit.ui'
+    compileSdk = 36
     defaultConfig {
-        minSdkVersion 26
+        minSdk = 26
     }
     buildFeatures {
-        compose true
+        compose = true
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_21
-        targetCompatibility JavaVersion.VERSION_21
-    }
-    kotlinOptions {
-        jvmTarget = '21'
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
 }
 

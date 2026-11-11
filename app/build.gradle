@@ -16,29 +16,23 @@
 
 plugins {
     id 'com.android.application'
-    id 'org.jetbrains.kotlin.android'
     id 'kotlin-parcelize'
     id "androidx.navigation.safeargs.kotlin"
-    id 'kotlin-kapt'
+    id 'com.android.legacy-kapt'
     id 'com.squareup.wire'
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
 android {
-    namespace 'io.timelimit.android'
-    compileSdk 36
+    namespace = 'io.timelimit.android'
+    compileSdk = 36
     defaultConfig {
-        applicationId "io.timelimit.android"
-        minSdkVersion 26
-        targetSdkVersion 36
-        versionCode 227
-        versionName "7.5.0"
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        kapt {
-            arguments {
-                arg("room.schemaLocation", "$projectDir/schemas".toString())
-            }
-        }
+        applicationId = "io.timelimit.android"
+        minSdk = 26
+        targetSdk = 36
+        versionCode = 227
+        versionName = "7.5.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField 'String', 'googlePlayKey', '"MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqxGPPhjSGrSI4jfIJmw83dDGTO4Sg74nXhOoHl5Omyvxa1Hv+Tzp/wC97emXSmKq9Li2bV4q3yJLjtLJtoDmh9V1vpdyjH13qOidhIUYOtlkGexbwKz56jZwRFXGBIy0RFDDr3j5DLfUWMk0dqplLgIHDqsdUNY50419oMGKAOCX3DEw+ky+0zMY/hlUkZHnd0HLi0CYNkdZyMMYnk8OiOZ3YoDU/vz9PTf93MCAONYcXBlo3Y5hdVY2tyH4qNZh1eyqe0Trz4fRf+y1ljoa0s4ZqYskbsgpy+zUbGb82cxmATAsrdJMnNKMEa30HBvfMzKiOPR6sq3A8PPPoWT5KQIDAQAB"'
         buildConfigField 'String', 'backdoorPublicKey', '"30819f300d06092a864886f70d010101050003818d0030818902818100bbb0f6029315d9a2344cac25b3af1ae751447eee6308f160d68969704b6cb4674e93ad462b13a166596d0d436a546fafb78ad79fabe158eb9b17aad4945a3cf74a6a2f771e5c836547f1ce47ce866eb2b994e5984b1e3c7457da133dde02bd0d575f588cd5bcca3acbf77c30f76bde4b16911da89caafe532c2f64b4f3f1d44b0203010001"'
         buildConfigField 'String', 'updateServer', '"https://update.timelimit.io/update.json"'
@@ -49,42 +43,43 @@ android {
         buildConfigField 'int', 'minimumRecommendServerVersion', '5'
     }
     buildFeatures {
-        compose true
-        viewBinding true
-        buildConfig true
+        compose = true
+        viewBinding = true
+        buildConfig = true
+        dataBinding = true
     }
 
-    flavorDimensions 'api', 'channel', 'server'
+    flavorDimensions = ['api', 'channel', 'server']
     productFlavors {
         storeVersion {
-            dimension 'channel'
+            dimension = 'channel'
             buildConfigField 'boolean', 'storeCompilant', 'true'
-            applicationIdSuffix ".store"
+            applicationIdSuffix = ".store"
         }
         directVersion {
-            dimension 'channel'
+            dimension = 'channel'
             buildConfigField 'boolean', 'storeCompilant', 'false'
-            applicationIdSuffix ".direct"
+            applicationIdSuffix = ".direct"
         }
 
         googleApi {
-            dimension 'api'
-            applicationIdSuffix ".google"
+            dimension = 'api'
+            applicationIdSuffix = ".google"
         }
         noGoogleApi {
-            dimension 'api'
-            applicationIdSuffix ".aosp"
+            dimension = 'api'
+            applicationIdSuffix = ".aosp"
         }
 
         developmentServer {
-            dimension 'server'
+            dimension = 'server'
             // this is your own computer when using the Android Emulator
             buildConfigField 'String', 'serverUrl', '"http://10.0.2.2:8080"'
             buildConfigField 'boolean', 'hasServer', 'true'
-            applicationIdSuffix '.developmentserver'
+            applicationIdSuffix = '.developmentserver'
         }
         productionServer {
-            dimension 'server'
+            dimension = 'server'
             // our family server, so the setup wizard needs no «select custom server» step;
             // certificate pinning below holds because it is a Let's Encrypt certificate too
             // @tag:sync-server
@@ -95,10 +90,10 @@ android {
             // no applicationIdSuffix
         }
         noServer {
-            dimension 'server'
+            dimension = 'server'
             buildConfigField 'String', 'serverUrl', '"https://0.0.0.0"'
             buildConfigField 'boolean', 'hasServer', 'false'
-            applicationIdSuffix '.offline'
+            applicationIdSuffix = '.offline'
         }
     }
 
@@ -110,68 +105,72 @@ android {
                 def keystore = File.createTempFile('timelimit-release', '.p12')
                 keystore.deleteOnExit()
                 keystore.bytes = keystoreBase64.decodeBase64()
-                storeFile keystore
-                storePassword System.getenv('TIMELIMIT_KEYSTORE_PASSWORD')
-                keyAlias System.getenv('TIMELIMIT_KEY_ALIAS')
-                keyPassword System.getenv('TIMELIMIT_KEYSTORE_PASSWORD')
+                storeFile = keystore
+                storePassword = System.getenv('TIMELIMIT_KEYSTORE_PASSWORD')
+                keyAlias = System.getenv('TIMELIMIT_KEY_ALIAS')
+                keyPassword = System.getenv('TIMELIMIT_KEYSTORE_PASSWORD')
             }
         }
     }
 
-    variantFilter { variant ->
-        def dim = variant.flavors.collectEntries {
-            [(it.productFlavor.dimension): it.productFlavor.name]
-        }
-
-        if (dim.channel == 'storeVersion' && dim.api == 'noGoogleApi') {
-            variant.setIgnore(true)
-        }
-
-        if (dim.channel == 'directVersion' && dim.api == 'googleApi') {
-            variant.setIgnore(true)
-        }
-
-        if (dim.server == 'noServer' && dim.api == 'googleApi') {
-            variant.setIgnore(true)
-        }
-    }
-
     lint {
-        disable 'GoogleAppIndexingWarning'
-        baseline file("lint-baseline.xml")
-    }
-
-    dataBinding {
-        enabled = true
+        disable.add('GoogleAppIndexingWarning')
+        // детектор NonNullableMutableLiveDataDetector из androidx.lifecycle падает с NPE на
+        // DataCacheLiveData.kt и валит lintVitalAnalyze релизной сборки; отключить эту проверку
+        // советует сам lint в тексте падения
+        disable.add('NullSafeMutableLiveData')
+        baseline = file("lint-baseline.xml")
     }
 
     buildTypes {
         debug {
-            minifyEnabled false
-            multiDexEnabled true
+            minifyEnabled = false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
 
         release {
-            minifyEnabled true
+            minifyEnabled = true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.release
+            signingConfig = signingConfigs.release
         }
     }
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_21
-        targetCompatibility JavaVersion.VERSION_21
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
 
-    kotlinOptions {
-        def outputDir = project.buildDir.path + "/compose-reports"
-        freeCompilerArgs += ["-P", "plugin:androidx.compose.compiler.plugins.kotlin:reportsDestination=$outputDir"]
-    }
+}
 
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.7"
+// бессмысленные сочетания вариантов отключаются androidComponents: variantFilter убран в AGP 9
+androidComponents {
+    beforeVariants(selector().all()) { variantBuilder ->
+        def dim = variantBuilder.productFlavors.collectEntries { [(it.first): it.second] }
+
+        if (dim.channel == 'storeVersion' && dim.api == 'noGoogleApi') {
+            variantBuilder.enable = false
+        }
+
+        if (dim.channel == 'directVersion' && dim.api == 'googleApi') {
+            variantBuilder.enable = false
+        }
+
+        if (dim.server == 'noServer' && dim.api == 'googleApi') {
+            variantBuilder.enable = false
+        }
     }
+}
+
+// куда Room кладёт схемы базы; у встроенного Kotlin блок kapt только верхнего уровня
+kapt {
+    arguments {
+        arg('room.schemaLocation', "$projectDir/schemas".toString())
+    }
+}
+
+// отчёты компилятора Compose — публичной настройкой плагина, а не аргументом -P
+composeCompiler {
+    reportsDestination = layout.buildDirectory.dir('compose-reports')
 }
 
 wire {
@@ -194,6 +193,10 @@ dependencies {
     implementation 'androidx.gridlayout:gridlayout:1.1.0'
     implementation "com.google.android.material:material:1.13.0"
     implementation 'androidx.compose.material:material:1.10.3'
+    // ThemeRes.kt берёт androidx.compose.ui.platform.LocalResources (есть с compose-ui 1.9):
+    // в отладочной сборке эту версию приводил debugImplementation ui-tooling, в релизной
+    // compose-ui разрешался в 1.8.2, и релиз не собирался
+    implementation 'androidx.compose.ui:ui:1.10.3'
     implementation 'androidx.activity:activity-compose:1.12.4'
     implementation "com.google.accompanist:accompanist-flowlayout:0.36.0"
     implementation 'androidx.compose.material:material-icons-extended:1.7.8'
@@ -208,6 +211,9 @@ dependencies {
     implementation "androidx.room:room-runtime:$room_version"
     implementation "androidx.room:room-ktx:$room_version"
     kapt "androidx.room:room-compiler:$room_version"
+    // room-compiler объявляет kotlin-metadata-jvm 2.2.0, а он читает метаданные только до 2.3.0;
+    // компилятор Kotlin 2.4 пишет 2.4.0, поэтому читателя на обработчик приносим сами
+    kapt "org.jetbrains.kotlin:kotlin-metadata-jvm:2.4.21"
     testImplementation "androidx.room:room-testing:$room_version"
 
     implementation "androidx.paging:paging-runtime:$paging_version"
@@ -246,5 +252,6 @@ dependencies {
     implementation 'com.google.zxing:core:3.5.4'
     implementation 'com.journeyapps:zxing-android-embedded:4.3.0'
 
-    api "com.squareup.wire:wire-runtime:5.5.0"
+    api "com.squareup.wire:wire-runtime:7.1.2"
 }
+
