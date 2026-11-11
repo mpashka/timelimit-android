@@ -55,5 +55,5 @@
     <string name="util_time_pause_in">Перерыв через %s</string>
     <string name="util_time_pause_shortly">Скоро перерыв</string>
     <!-- @tag:child-homescreen at most 200 characters -->
-    <string name="device_owner_short_support_message">Приложение закрыто правилами TimeLimit. Сколько осталось и когда откроется — в виджете TimeLimit или на экране «Что можно».</string>
+    <string name="device_owner_short_support_message">Закрыто правилами TimeLimit. Сколько осталось и когда откроется — в виджете TimeLimit или на экране «Что можно».</string>
 </resources>
