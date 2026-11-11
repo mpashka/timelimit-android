@@ -173,14 +173,19 @@ class SuspendAppsLogic(private val appLogic: AppLogic): Observer {
             }
 
         val isRestrictedUser = userAndDeviceRelatedData?.userRelatedData?.user?.type == UserType.Child
+        // the pinned launcher and the one Home leads to now are never hidden or suspended: the child would lose Home
+        // @tag:child-homescreen
+        val homePackages = setOfNotNull(
+            appLogic.database.config().getLauncherPackageSync(),
+            appLogic.platformIntegration.getLauncherAppPackageName()
+        )
         applyHiddenApps(if (isRestrictedUser) userAndDeviceRelatedData?.let { data ->
             DESKTOP_MODE_PACKAGES + hiddenPackages(
                 appRules = data.userRelatedData!!.user.appRules,
                 categories = data.userRelatedData.categories.map { it.category },
                 categoryApps = data.userRelatedData.categoryApps,
                 deviceId = data.deviceRelatedData.deviceEntry.id
-            ) - AndroidIntegrationApps.appsToNotSuspend - appLogic.context.packageName -
-                    setOfNotNull(appLogic.database.config().getLauncherPackageSync())
+            ) - AndroidIntegrationApps.appsToNotSuspend - appLogic.context.packageName - homePackages
         }.orEmpty() else emptySet())
         val enableBlockingAtSystemLevel = userAndDeviceRelatedData?.deviceRelatedData?.isExperimentalFlagSetSync(ExperimentalFlags.SYSTEM_LEVEL_BLOCKING) ?: false
         val hasManagedFeatures = featureCategoryApps.isNotEmpty()
@@ -283,7 +288,7 @@ class SuspendAppsLogic(private val appLogic: AppLogic): Observer {
                 val prepared = getAppsWithCategories(installedApps, userRelatedData, blockingAtActivityLevel, userAndDeviceRelatedData.deviceRelatedData.deviceEntry.id)
                 val appsToBlock = mutableListOf<String>()
 
-                installedApps.filterNot { AndroidIntegrationApps.appsToNotSuspend.contains(it) }.forEach { packageName ->
+                installedApps.filterNot { AndroidIntegrationApps.appsToNotSuspend.contains(it) || homePackages.contains(it) }.forEach { packageName ->
                     if (shouldSuspend(
                             packageName = packageName,
                             categoryIds = prepared[packageName] ?: emptySet(),
