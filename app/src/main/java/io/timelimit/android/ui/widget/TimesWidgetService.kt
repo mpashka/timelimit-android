@@ -32,17 +32,20 @@ import io.timelimit.android.async.Threads
 import io.timelimit.android.child.WidgetClickActivity
 import io.timelimit.android.livedata.mergeLiveDataWaitForValues
 import io.timelimit.android.logic.DefaultAppLogic
-import io.timelimit.android.ui.manage.child.category.CategoryItemLeftPadding
+import io.timelimit.android.ui.widget.TimesWidgetContent.Categories.Bar
+import io.timelimit.android.ui.widget.TimesWidgetContent.Categories.Mode
+import io.timelimit.ui.child.formatClock
+import io.timelimit.ui.child.modeNameId
+import io.timelimit.ui.R as UiR
 
 class TimesWidgetService: RemoteViewsService() {
     companion object {
         private const val EXTRA_APP_WIDGET_ID = "appWidgetId"
-        private const val EXTRA_TRANSLUCENT = "translucent"
+        private const val OPEN_APPS_SHOWN = 3
 
-        fun intent(context: Context, appWidgetId: Int, translucent: Boolean) = Intent(context, TimesWidgetService::class.java)
-            .setData(Uri.parse("widget:$appWidgetId:$translucent"))
+        fun intent(context: Context, appWidgetId: Int) = Intent(context, TimesWidgetService::class.java)
+            .setData(Uri.parse("widget:$appWidgetId"))
             .putExtra(EXTRA_APP_WIDGET_ID, appWidgetId)
-            .putExtra(EXTRA_TRANSLUCENT, translucent)
 
         fun notifyContentChanges(context: Context) {
             context.getSystemService<AppWidgetManager>()?.also { appWidgetManager ->
@@ -71,7 +74,7 @@ class TimesWidgetService: RemoteViewsService() {
         notifyContentChanges(this)
     }
 
-    private fun createFactory(appWidgetId: Int, translucent: Boolean) = object : RemoteViewsFactory {
+    private fun createFactory(appWidgetId: Int) = object : RemoteViewsFactory {
         private var currentItems: List<TimesWidgetItem> = emptyList()
 
         init { onDataSetChanged() }
@@ -100,47 +103,14 @@ class TimesWidgetService: RemoteViewsService() {
 
         override fun getCount(): Int = currentItems.size
 
+        // @tag:new-ui
         override fun getViewAt(position: Int): RemoteViews {
-            val categoryItemView = if (translucent) R.layout.widget_times_category_item_translucent
-            else R.layout.widget_times_category_item
-
-            if (position >= currentItems.size) {
-                return RemoteViews(packageName, categoryItemView)
-            }
-
-            // @tag:new-ui
-            fun createCategoryItem(title: String?, subtitle: String, paddingLeft: Int) = RemoteViews(packageName, categoryItemView).also { result ->
-                result.setOnClickFillInIntent(R.id.widgetInnerContainer, Intent())
-                result.setTextViewText(R.id.title, title ?: "")
-                result.setTextViewText(R.id.subtitle, subtitle)
-
-                result.setViewPadding(R.id.widgetInnerContainer, paddingLeft, 0, 0, 0)
-                result.setViewVisibility(R.id.title, if (title != null) View.VISIBLE else View.GONE)
-                result.setViewVisibility(R.id.topPadding, if (position == 0) View.VISIBLE else View.GONE)
-                result.setViewVisibility(R.id.bottomPadding, if (position == count - 1) View.VISIBLE else View.GONE)
-            }
-
-            val item = currentItems[position]
+            val item = currentItems.getOrNull(position) ?: return RemoteViews(packageName, R.layout.widget_times_category_item)
 
             return when (item) {
-                is TimesWidgetItem.Category -> item.category.let { category ->
-                    createCategoryItem(
-                        title = if (category.remainingTimeToday == null)
-                            getString(R.string.manage_child_category_no_time_limits_short)
-                        else {
-                            val remainingTimeToday = category.remainingTimeToday.coerceAtLeast(0) / (1000 * 60)
-                            val minutes = (remainingTimeToday % 60).toInt()
-                            val hours = (remainingTimeToday / 60).toInt()
-
-                            if (hours == 0) getString(R.string.widget_time_minutes, minutes)
-                            else getString(R.string.widget_time_hours_minutes, hours, minutes)
-                        },
-                        subtitle = category.categoryName,
-                        // not much space here => / 2
-                        paddingLeft = CategoryItemLeftPadding.calculate(category.level, this@TimesWidgetService) / 2
-                    )
-                }
-                is TimesWidgetItem.TextMessage -> createCategoryItem(null, getString(item.textRessourceId), 0)
+                is TimesWidgetItem.Category -> categoryItem(item.category.categoryName, item.category.day, item.category.week)
+                is TimesWidgetItem.Mode -> modeItem(item.mode)
+                is TimesWidgetItem.TextMessage -> categoryItem(getString(item.textRessourceId), null, null)
                 is TimesWidgetItem.DefaultUserButton -> RemoteViews(packageName, R.layout.widget_times_button).also { result ->
                     result.setTextViewText(R.id.button, getString(R.string.manage_device_default_user_switch_btn))
                     result.setOnClickFillInIntent(R.id.button, WidgetClickActivity.switchToDefaultUser())
@@ -150,7 +120,7 @@ class TimesWidgetService: RemoteViewsService() {
 
         override fun getLoadingView(): RemoteViews?  = null
 
-        override fun getViewTypeCount(): Int = 2
+        override fun getViewTypeCount(): Int = 3
 
         override fun getItemId(position: Int): Long {
             if (position >= currentItems.size) {
@@ -168,8 +138,49 @@ class TimesWidgetService: RemoteViewsService() {
         override fun hasStableIds(): Boolean = true
     }
 
-    override fun onGetViewFactory(intent: Intent): RemoteViewsFactory = createFactory(
-        intent.getIntExtra(EXTRA_APP_WIDGET_ID, 0),
-        intent.getBooleanExtra(EXTRA_TRANSLUCENT, false)
-    )
+    override fun onGetViewFactory(intent: Intent): RemoteViewsFactory = createFactory(intent.getIntExtra(EXTRA_APP_WIDGET_ID, 0))
+
+    // @tag:new-ui
+    private fun categoryItem(title: String, day: Bar?, week: Bar?) = RemoteViews(packageName, R.layout.widget_times_category_item).also { result ->
+        result.setOnClickFillInIntent(R.id.widgetInnerContainer, Intent())
+        result.setTextViewText(R.id.title, title)
+        showBar(result, day, R.id.dayBar, R.id.dayProgress, R.id.dayOver)
+        showBar(result, week, R.id.weekBar, R.id.weekProgress, R.id.weekOver)
+    }
+
+    // RemoteViews cannot tint a ProgressBar below API 31: the red bar is a second view
+    private fun showBar(views: RemoteViews, bar: Bar?, container: Int, progress: Int, over: Int) {
+        views.setViewVisibility(container, if (bar == null) View.GONE else View.VISIBLE)
+        if (bar == null) return
+
+        views.setProgressBar(progress, 100, bar.usedPercent, false)
+        views.setViewVisibility(progress, if (bar.over) View.GONE else View.VISIBLE)
+        views.setViewVisibility(over, if (bar.over) View.VISIBLE else View.GONE)
+    }
+
+    // @tag:new-ui
+    private fun modeItem(mode: Mode) = RemoteViews(packageName, R.layout.widget_times_mode_item).also { result ->
+        val name = getString(modeNameId(mode.kind))
+        val ring = when {
+            mode.startsIn == null -> R.id.ringMode
+            mode.startsIn <= TimesWidgetModel.SOON_MINUTES -> R.id.ringSoon
+            else -> R.id.ringNormal
+        }
+
+        result.setOnClickFillInIntent(R.id.widgetInnerContainer, Intent())
+        result.setTextViewText(R.id.modeText, when {
+            mode.startsIn == null -> getString(UiR.string.widget_mode_until, name.replaceFirstChar { it.uppercase() }, formatClock(mode.until))
+            mode.startsIn <= TimesWidgetModel.SOON_MINUTES -> getString(UiR.string.widget_mode_soon, mode.startsIn, name, formatClock(mode.until))
+            else -> getString(UiR.string.widget_mode_at, name.replaceFirstChar { it.uppercase() }, formatClock(mode.from))
+        })
+        listOf(R.id.ringNormal, R.id.ringSoon, R.id.ringMode).forEach {
+            result.setViewVisibility(it, if (it == ring) View.VISIBLE else View.GONE)
+        }
+        result.setProgressBar(ring, 100, mode.leftPercent, false)
+        result.setViewVisibility(R.id.openApps, if (mode.openApps.isEmpty()) View.GONE else View.VISIBLE)
+        result.setTextViewText(R.id.openApps, getString(
+            UiR.string.widget_mode_open_apps,
+            (mode.openApps.take(OPEN_APPS_SHOWN) + listOfNotNull("…".takeIf { mode.openApps.size > OPEN_APPS_SHOWN })).joinToString(", ")
+        ))
+    }
 }

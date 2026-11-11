@@ -18,5 +18,7 @@ package io.timelimit.android.ui.widget
 sealed class TimesWidgetItem {
     data class TextMessage(val textRessourceId: Int): TimesWidgetItem()
     data class Category(val category: TimesWidgetContent.Categories.Item): TimesWidgetItem()
+    // @tag:new-ui
+    data class Mode(val mode: TimesWidgetContent.Categories.Mode): TimesWidgetItem()
     object DefaultUserButton: TimesWidgetItem()
 }

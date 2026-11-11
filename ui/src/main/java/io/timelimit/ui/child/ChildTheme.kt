@@ -143,10 +143,11 @@ private fun loadIcon(context: Context, packageName: String): Bitmap? = try {
     null
 }
 
+// @tag:new-ui
+fun modeNameId(kind: io.timelimit.api.ModeKind): Int = when (kind) {
+    io.timelimit.api.ModeKind.Sleep -> R.string.mode_sleep
+    io.timelimit.api.ModeKind.Study -> R.string.mode_study
+}
+
 @Composable
-fun modeName(kind: io.timelimit.api.ModeKind): String = stringResource(
-    when (kind) {
-        io.timelimit.api.ModeKind.Sleep -> R.string.mode_sleep
-        io.timelimit.api.ModeKind.Study -> R.string.mode_study
-    }
-)
+fun modeName(kind: io.timelimit.api.ModeKind): String = stringResource(modeNameId(kind))

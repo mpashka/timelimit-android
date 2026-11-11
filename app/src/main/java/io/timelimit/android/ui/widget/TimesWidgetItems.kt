@@ -26,17 +26,18 @@ object TimesWidgetItems {
             if (content.canSwitchToDefaultUser) listOf(base, TimesWidgetItem.DefaultUserButton)
             else listOf(base)
         }
+        // @tag:new-ui
         is TimesWidgetContent.Categories -> {
             val categoryFilter = config.widgetCategoriesByWidgetId[appWidgetId] ?: emptySet()
+            val categories = if (categoryFilter.isEmpty()) content.categories
+            else content.categories.filter { categoryFilter.contains(it.categoryId) }
 
-            val categoryItems = if (content.categories.isEmpty()) listOf(TimesWidgetItem.TextMessage(R.string.widget_msg_no_category))
-            else if (categoryFilter.isEmpty()) content.categories.map { TimesWidgetItem.Category(it) }
-            else {
-                val filteredCategories = content.categories.filter { categoryFilter.contains(it.categoryId) }
-
-                if (filteredCategories.isEmpty()) listOf(TimesWidgetItem.TextMessage(R.string.widget_msg_no_filtered_category))
-                else filteredCategories.map { TimesWidgetItem.Category(it) }
-            }
+            val categoryItems = (listOfNotNull(content.mode?.let { TimesWidgetItem.Mode(it) }) + categories.map { TimesWidgetItem.Category(it) })
+                .ifEmpty {
+                    listOf(TimesWidgetItem.TextMessage(
+                        if (categoryFilter.isEmpty()) R.string.widget_msg_no_category else R.string.widget_msg_no_filtered_category
+                    ))
+                }
 
             if (content.canSwitchToDefaultUser) categoryItems + TimesWidgetItem.DefaultUserButton
             else categoryItems

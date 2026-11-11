@@ -1739,7 +1739,7 @@
 
     <string name="widget_msg_unconfigured">Dieses Widget funktioniert nur auf beschränkten Geräten</string>
     <string name="widget_msg_no_child">Momentan hat dieses Gerät keinen Kind-Benutzer</string>
-    <string name="widget_msg_no_category">Das Kind hat keine Kategorien</string>
+    <string name="widget_msg_no_category">Es gibt keine Zeitbegrenzungen</string>
     <string name="widget_msg_no_filtered_category">Das Kind hat keine für das Widget ausgewählten Kategorien</string>
     <string name="widget_config_mode_all">alle Kategorien anzeigen</string>
     <string name="widget_config_mode_filter">sichtbare Kategorien filtern</string>

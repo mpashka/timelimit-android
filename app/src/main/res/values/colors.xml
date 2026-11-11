@@ -21,6 +21,17 @@
     <color name="widgetBackgroundTranslucent">#33000000</color>
     <color name="widgetText">#000000</color>
     <color name="widgetTextTranslucent">#ffffff</color>
+    <!-- @tag:new-ui widget variant G: glass that blends with the wallpaper -->
+    <color name="widgetGlass">#570C1018</color>
+    <color name="widgetGlassText">#D7DEE8</color>
+    <color name="widgetGlassModeText">#C9D3E0</color>
+    <color name="widgetGlassDimText">#99C9D3E0</color>
+    <color name="widgetBarTrack">#24FFFFFF</color>
+    <color name="widgetBarFill">#8FA3BD</color>
+    <color name="widgetBarOver">#C46A6A</color>
+    <color name="widgetRingNormal">#A9B8CC</color>
+    <color name="widgetRingSoon">#D9B36A</color>
+    <color name="widgetRingMode">#7F8FD6</color>
 
     <color name="transparent">#00000000</color>
     <color name="gray">#9E9E9E</color>

@@ -22,5 +22,10 @@ object ModeClock {
         return start to length
     }
 
+    /** How many minutes right before [nowMinute] are all blocked ([state] true) or all open, up to a week. */
+    // @tag:new-ui
+    fun runBefore(blocked: BitSet, nowMinute: Int, state: Boolean): Int =
+        (1..WEEK).firstOrNull { blocked[(nowMinute - it + WEEK) % WEEK] != state }?.minus(1) ?: WEEK
+
     fun nextDayStart(nowMinute: Int): Int = (nowMinute / DAY + 1) * DAY
 }

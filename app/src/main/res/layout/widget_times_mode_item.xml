@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  TimeLimit Copyright <C> 2019 - 2022 Jonas Lochmann
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation version 3 of the License.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
+-->
+<!-- @tag:new-ui the mode line: ring of time left, «Сон в 21:00», and while a mode goes on what stays open -->
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:background="@color/widgetGlass"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:id="@+id/widgetInnerContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="2dp"
+        android:paddingBottom="4dp"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ProgressBar
+                android:id="@+id/ringNormal"
+                style="@android:style/Widget.ProgressBar.Horizontal"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:minHeight="14dp"
+                android:maxHeight="14dp"
+                android:indeterminate="false"
+                android:max="100"
+                android:progressDrawable="@drawable/widget_ring_normal"
+                tools:progress="70" />
+
+            <ProgressBar
+                android:id="@+id/ringSoon"
+                style="@android:style/Widget.ProgressBar.Horizontal"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:minHeight="14dp"
+                android:maxHeight="14dp"
+                android:indeterminate="false"
+                android:max="100"
+                android:progressDrawable="@drawable/widget_ring_soon"
+                android:visibility="gone"
+                tools:progress="70" />
+
+            <ProgressBar
+                android:id="@+id/ringMode"
+                style="@android:style/Widget.ProgressBar.Horizontal"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:minHeight="14dp"
+                android:maxHeight="14dp"
+                android:indeterminate="false"
+                android:max="100"
+                android:progressDrawable="@drawable/widget_ring_mode"
+                android:visibility="gone"
+                tools:progress="70" />
+
+            <TextView
+                tools:text="Сон в 21:00"
+                android:id="@+id/modeText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:textSize="12sp"
+                android:textColor="@color/widgetGlassModeText" />
+        </LinearLayout>
+
+        <TextView
+            tools:text="Можно только: Камера, Телефон"
+            android:id="@+id/openApps"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingStart="20dp"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:textSize="12sp"
+            android:textColor="@color/widgetGlassDimText"
+            android:visibility="gone" />
+    </LinearLayout>
+</FrameLayout>

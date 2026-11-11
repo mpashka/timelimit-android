@@ -1794,7 +1794,7 @@
 
     <string name="widget_msg_unconfigured">This Widget only works on limited devices</string>
     <string name="widget_msg_no_child">This device is not used by a child right now</string>
-    <string name="widget_msg_no_category">This child does not have any categories</string>
+    <string name="widget_msg_no_category">There are no time limits</string>
     <string name="widget_msg_no_filtered_category">For this child, no visible categories were chosen for this widget</string>
     <string name="widget_config_mode_all">Show all Categories</string>
     <string name="widget_config_mode_filter">Filter visible Categories</string>

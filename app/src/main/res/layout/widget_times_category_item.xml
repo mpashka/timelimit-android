@@ -13,48 +13,83 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 -->
+<!-- @tag:new-ui a limited category: its title, then a thin bar for the day limit and one for the week limit -->
 <FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    tools:background="@color/widgetBackground"
+    tools:background="@color/widgetGlass"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:paddingTop="4dp"
-    android:paddingBottom="4dp"
-    android:paddingLeft="16dp"
-    android:paddingRight="16dp">
+    android:layout_height="wrap_content">
+
     <LinearLayout
         android:id="@+id/widgetInnerContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:paddingTop="5dp"
+        android:paddingBottom="3dp"
         android:orientation="vertical">
 
-        <FrameLayout
-            android:id="@+id/topPadding"
-            android:layout_width="match_parent"
-            android:layout_height="12dp" />
-
         <TextView
-            tools:text="3 m"
+            tools:text="Игры"
             android:id="@+id/title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textAppearance="?android:textAppearanceLarge"
-            android:textStyle="bold"
-            android:textColor="@color/widgetText"/>
-
-        <TextView
-            tools:text="Erlaubte Apps"
-            android:id="@+id/subtitle"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textAppearance="?android:textAppearanceMedium"
-            android:textColor="@color/widgetText"/>
+            android:singleLine="true"
+            android:ellipsize="end"
+            android:textSize="12sp"
+            android:textColor="@color/widgetGlassText" />
 
         <FrameLayout
-            android:id="@+id/bottomPadding"
+            android:id="@+id/dayBar"
             android:layout_width="match_parent"
-            android:layout_height="12dp" />
+            android:layout_height="3dp"
+            android:layout_marginTop="3dp">
+
+            <ProgressBar
+                android:id="@+id/dayProgress"
+                style="@android:style/Widget.ProgressBar.Horizontal"
+                android:layout_width="match_parent"
+                android:layout_height="3dp"
+                android:minHeight="3dp"
+                android:maxHeight="3dp"
+                android:indeterminate="false"
+                android:max="100"
+                android:progressDrawable="@drawable/widget_bar"
+                tools:progress="40" />
+
+            <FrameLayout
+                android:id="@+id/dayOver"
+                android:layout_width="match_parent"
+                android:layout_height="3dp"
+                android:background="@drawable/widget_bar_over"
+                android:visibility="gone" />
+        </FrameLayout>
+
+        <FrameLayout
+            android:id="@+id/weekBar"
+            android:layout_width="match_parent"
+            android:layout_height="3dp"
+            android:layout_marginTop="2dp">
+
+            <ProgressBar
+                android:id="@+id/weekProgress"
+                style="@android:style/Widget.ProgressBar.Horizontal"
+                android:layout_width="match_parent"
+                android:layout_height="3dp"
+                android:minHeight="3dp"
+                android:maxHeight="3dp"
+                android:indeterminate="false"
+                android:max="100"
+                android:progressDrawable="@drawable/widget_bar"
+                tools:progress="40" />
+
+            <FrameLayout
+                android:id="@+id/weekOver"
+                android:layout_width="match_parent"
+                android:layout_height="3dp"
+                android:background="@drawable/widget_bar_over"
+                android:visibility="gone" />
+        </FrameLayout>
 
     </LinearLayout>
 </FrameLayout>

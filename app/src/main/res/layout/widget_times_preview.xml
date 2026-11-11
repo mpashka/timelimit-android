@@ -13,46 +13,113 @@
     You should have received a copy of the GNU General Public License
     along with this program. If not, see <https://www.gnu.org/licenses/>.
 -->
+<!-- @tag:new-ui the look of the widget (variant G) for the widget picker -->
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="16dp"
-    android:background="@color/widgetBackground">
+    android:paddingLeft="12dp"
+    android:paddingRight="12dp"
+    android:paddingTop="10dp"
+    android:paddingBottom="10dp"
+    android:background="@drawable/widget_glass">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ProgressBar
+            style="@android:style/Widget.ProgressBar.Horizontal"
+            android:layout_width="14dp"
+            android:layout_height="14dp"
+            android:minHeight="14dp"
+            android:maxHeight="14dp"
+            android:indeterminate="false"
+            android:max="100"
+            android:progress="70"
+            android:progressDrawable="@drawable/widget_ring_normal" />
+
+        <TextView
+            tools:ignore="HardcodedText"
+            android:text="Сон в 21:00"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:textSize="12sp"
+            android:textColor="@color/widgetGlassModeText" />
+    </LinearLayout>
 
     <TextView
         tools:ignore="HardcodedText"
-        android:text="no limit"
+        android:text="Игры"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textAppearance="?android:textAppearanceLarge"
-        android:textStyle="bold"
-        android:textColor="@color/widgetText"/>
+        android:layout_marginTop="8dp"
+        android:textSize="12sp"
+        android:textColor="@color/widgetGlassText" />
 
-    <TextView
-        android:paddingBottom="8dp"
-        android:text="@string/setup_category_allowed"
+    <ProgressBar
+        style="@android:style/Widget.ProgressBar.Horizontal"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:textAppearance="?android:textAppearanceMedium"
-        android:textColor="@color/widgetText"/>
+        android:layout_height="3dp"
+        android:layout_marginTop="3dp"
+        android:minHeight="3dp"
+        android:maxHeight="3dp"
+        android:indeterminate="false"
+        android:max="100"
+        android:progress="60"
+        android:progressDrawable="@drawable/widget_bar" />
+
+    <ProgressBar
+        style="@android:style/Widget.ProgressBar.Horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="3dp"
+        android:layout_marginTop="2dp"
+        android:minHeight="3dp"
+        android:maxHeight="3dp"
+        android:indeterminate="false"
+        android:max="100"
+        android:progress="85"
+        android:progressDrawable="@drawable/widget_bar" />
 
     <TextView
         tools:ignore="HardcodedText"
-        android:text="30 m"
+        android:text="Видео"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textAppearance="?android:textAppearanceLarge"
-        android:textStyle="bold"
-        android:textColor="@color/widgetText"/>
+        android:layout_marginTop="8dp"
+        android:textSize="12sp"
+        android:textColor="@color/widgetGlassText" />
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="3dp"
+        android:layout_marginTop="3dp"
+        android:background="@drawable/widget_bar_over" />
 
     <TextView
-        android:text="@string/setup_category_games"
+        tools:ignore="HardcodedText"
+        android:text="Учёба"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textAppearance="?android:textAppearanceMedium"
-        android:textColor="@color/widgetText"/>
+        android:layout_marginTop="8dp"
+        android:textSize="12sp"
+        android:textColor="@color/widgetGlassText" />
+
+    <ProgressBar
+        style="@android:style/Widget.ProgressBar.Horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="3dp"
+        android:layout_marginTop="3dp"
+        android:minHeight="3dp"
+        android:maxHeight="3dp"
+        android:indeterminate="false"
+        android:max="100"
+        android:progress="30"
+        android:progressDrawable="@drawable/widget_bar" />
 
 </LinearLayout>

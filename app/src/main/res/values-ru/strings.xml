@@ -4,7 +4,7 @@
 <resources>
     <string name="widget_msg_unconfigured">Виджет работает только на планшете с ограничениями</string>
     <string name="widget_msg_no_child">Сейчас планшетом пользуется не ребёнок</string>
-    <string name="widget_msg_no_category">У ребёнка ещё нет категорий</string>
+    <string name="widget_msg_no_category">Ограничений по времени нет</string>
     <string name="widget_msg_no_filtered_category">Для виджета не выбрано ни одной категории</string>
     <string name="widget_time_minutes">%d мин</string>
     <string name="widget_time_hours_minutes">%1$d ч %2$d мин</string>

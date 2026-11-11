@@ -61,8 +61,10 @@ class TimesWidgetProvider: AppWidgetProvider() {
                         else R.layout.widget_times
                     )
 
-                    views.setRemoteAdapter(android.R.id.list, TimesWidgetService.intent(context, appWidgetId, translucent))
+                    views.setRemoteAdapter(android.R.id.list, TimesWidgetService.intent(context, appWidgetId))
                     views.setPendingIntentTemplate(android.R.id.list, WidgetClickActivity.template(context))
+                    // @tag:new-ui a tap beside the list items opens «Что можно» too
+                    views.setOnClickPendingIntent(R.id.widgetRoot, WidgetClickActivity.template(context))
                     views.setEmptyView(android.R.id.list, android.R.id.empty)
 
                     appWidgetManager.updateAppWidget(appWidgetId, views)

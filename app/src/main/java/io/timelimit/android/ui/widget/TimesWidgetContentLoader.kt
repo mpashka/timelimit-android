@@ -18,6 +18,11 @@ package io.timelimit.android.ui.widget
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
 import io.timelimit.android.async.Threads
+import io.timelimit.android.child.CategoryChain
+import io.timelimit.android.child.CategoryLimits
+import io.timelimit.android.data.model.derived.UserRelatedData
+import io.timelimit.android.date.DateInTimezone
+import io.timelimit.android.date.getMinuteOfWeek
 import io.timelimit.android.data.extensions.sortedCategories
 import io.timelimit.android.data.model.UserType
 import io.timelimit.android.livedata.ignoreUnchanged
@@ -26,6 +31,8 @@ import io.timelimit.android.logic.RealTime
 import io.timelimit.android.logic.blockingreason.CategoryHandlingCache
 
 object TimesWidgetContentLoader {
+    private const val MINUTE = 60_000L
+
     fun with(logic: AppLogic): LiveData<TimesWidgetContent> {
         val database = logic.database
         val realTimeLogic = logic.realTimeLogic
@@ -57,11 +64,27 @@ object TimesWidgetContentLoader {
             override fun onInactive() {
                 super.onInactive()
 
-                isActive = true
+                isActive = false
 
                 realTimeLogic.unregisterTimeModificationListener(timeModificationListener)
                 handler.removeCallbacks(updateByClockRunnable)
             }
+        }
+
+        // ponytail: titles of every launchable app of an open category, system apps of «Всегда можно» included
+        // @tag:new-ui
+        fun openApps(user: UserRelatedData): List<String> {
+            val open = user.categories.map { it.category.id }
+                .filterNot { CategoryChain(user, it, categoryHandlingCache).closedNow }
+                .toSet()
+            val packageManager = logic.context.packageManager
+
+            return user.categoryApps.filter { it.categoryId in open }
+                .map { it.appSpecifier.packageName }
+                .distinct()
+                .filter { it != logic.context.packageName && packageManager.getLaunchIntentForPackage(it) != null }
+                .mapNotNull { logic.platformIntegration.getLocalAppTitle(it) }
+                .sorted()
         }
 
         fun update() {
@@ -98,22 +121,36 @@ object TimesWidgetContentLoader {
             )
 
             var maxTime = Long.MAX_VALUE
+            val now = realTime.timeInMillis
+            val minuteStart = now - now % MINUTE
+            val date = DateInTimezone.newInstance(now, userRelatedData.timeZone)
 
-            val categories = userRelatedData.sortedCategories().map { (level, category) ->
+            // @tag:new-ui
+            val categories = userRelatedData.sortedCategories().mapNotNull { (_, category) ->
                 val handling = categoryHandlingCache.get(categoryId = category.category.id)
+                val limits = CategoryLimits(category.rules, category.usedTimes, date, now)
 
                 maxTime = maxTime.coerceAtMost(handling.dependsOnMaxTime)
 
-                TimesWidgetContent.Categories.Item(
-                        categoryId = category.category.id,
-                        categoryName = category.category.title,
-                        level = level,
-                        remainingTimeToday = handling.remainingTime?.includingExtraTime
+                TimesWidgetModel.item(
+                    categoryId = category.category.id,
+                    title = category.category.title,
+                    remaining = CategoryChain(userRelatedData, category.category.id, categoryHandlingCache).remaining,
+                    dayLimit = limits.dayLimit,
+                    week = limits.week
                 )
             }
 
+            // @tag:new-ui
+            val mode = TimesWidgetModel.mode(userRelatedData.categories, getMinuteOfWeek(now, userRelatedData.timeZone), minuteStart)
+                ?.let { if (it.startsIn == null) it.copy(openApps = openApps(userRelatedData)) else it }
+
+            // the ring and «через N мин» change every minute
+            if (mode != null) maxTime = maxTime.coerceAtMost(minuteStart + MINUTE)
+
             newResult.value = TimesWidgetContent.Categories(
                 categories = categories,
+                mode = mode,
                 canSwitchToDefaultUser = canSwitchToDefaultUser
             )
 
