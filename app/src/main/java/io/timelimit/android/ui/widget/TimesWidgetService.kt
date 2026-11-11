@@ -41,7 +41,6 @@ import io.timelimit.ui.R as UiR
 class TimesWidgetService: RemoteViewsService() {
     companion object {
         private const val EXTRA_APP_WIDGET_ID = "appWidgetId"
-        private const val OPEN_APPS_SHOWN = 3
 
         fun intent(context: Context, appWidgetId: Int) = Intent(context, TimesWidgetService::class.java)
             .setData(Uri.parse("widget:$appWidgetId"))
@@ -177,10 +176,5 @@ class TimesWidgetService: RemoteViewsService() {
             result.setViewVisibility(it, if (it == ring) View.VISIBLE else View.GONE)
         }
         result.setProgressBar(ring, 100, mode.leftPercent, false)
-        result.setViewVisibility(R.id.openApps, if (mode.openApps.isEmpty()) View.GONE else View.VISIBLE)
-        result.setTextViewText(R.id.openApps, getString(
-            UiR.string.widget_mode_open_apps,
-            (mode.openApps.take(OPEN_APPS_SHOWN) + listOfNotNull("…".takeIf { mode.openApps.size > OPEN_APPS_SHOWN })).joinToString(", ")
-        ))
     }
 }

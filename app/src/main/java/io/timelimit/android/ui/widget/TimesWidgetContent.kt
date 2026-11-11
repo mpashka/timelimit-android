@@ -47,8 +47,7 @@ sealed class TimesWidgetContent {
                         val from: Long,
                         val until: Long,
                         val startsIn: Int?,
-                        val leftPercent: Int,
-                        val openApps: List<String> = emptyList()
+                        val leftPercent: Int
                 )
         }
 }

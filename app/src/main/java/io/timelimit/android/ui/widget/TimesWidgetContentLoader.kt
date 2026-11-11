@@ -71,22 +71,6 @@ object TimesWidgetContentLoader {
             }
         }
 
-        // ponytail: titles of every launchable app of an open category, system apps of «Всегда можно» included
-        // @tag:new-ui
-        fun openApps(user: UserRelatedData): List<String> {
-            val open = user.categories.map { it.category.id }
-                .filterNot { CategoryChain(user, it, categoryHandlingCache).closedNow }
-                .toSet()
-            val packageManager = logic.context.packageManager
-
-            return user.categoryApps.filter { it.categoryId in open }
-                .map { it.appSpecifier.packageName }
-                .distinct()
-                .filter { it != logic.context.packageName && packageManager.getLaunchIntentForPackage(it) != null }
-                .mapNotNull { logic.platformIntegration.getLocalAppTitle(it) }
-                .sorted()
-        }
-
         fun update() {
             handler.removeCallbacks(updateByClockRunnable)
 
@@ -143,7 +127,6 @@ object TimesWidgetContentLoader {
 
             // @tag:new-ui
             val mode = TimesWidgetModel.mode(userRelatedData.categories, getMinuteOfWeek(now, userRelatedData.timeZone), minuteStart)
-                ?.let { if (it.startsIn == null) it.copy(openApps = openApps(userRelatedData)) else it }
 
             // the ring and «через N мин» change every minute
             if (mode != null) maxTime = maxTime.coerceAtMost(minuteStart + MINUTE)

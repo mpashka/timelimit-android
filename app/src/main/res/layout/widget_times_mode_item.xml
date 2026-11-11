@@ -13,7 +13,7 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 -->
-<!-- @tag:new-ui the mode line: ring of time left, «Сон в 21:00», and while a mode goes on what stays open -->
+<!-- @tag:new-ui the mode line: ring of time left, «Сон в 21:00» -->
 <FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
@@ -85,16 +85,5 @@
                 android:textColor="@color/widgetGlassModeText" />
         </LinearLayout>
 
-        <TextView
-            tools:text="Можно только: Камера, Телефон"
-            android:id="@+id/openApps"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:paddingStart="20dp"
-            android:maxLines="2"
-            android:ellipsize="end"
-            android:textSize="12sp"
-            android:textColor="@color/widgetGlassDimText"
-            android:visibility="gone" />
     </LinearLayout>
 </FrameLayout>

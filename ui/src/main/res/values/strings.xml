@@ -266,7 +266,6 @@
     <string name="widget_mode_at">%1$s в %2$s</string>
     <string name="widget_mode_soon">Через %1$d мин — %2$s до %3$s</string>
     <string name="widget_mode_until">%1$s до %2$s</string>
-    <string name="widget_mode_open_apps">Можно только: %s</string>
 
     <string name="child_hours_minutes">%1$d ч %2$d мин</string>
     <string name="child_hours">%d ч</string>
