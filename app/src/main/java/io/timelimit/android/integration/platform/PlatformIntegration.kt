@@ -66,14 +66,16 @@ abstract class PlatformIntegration(
     // returns true on success
     abstract fun setBlockedFeatures(features: Set<String>): Boolean
     abstract fun getFeatures(): List<PlatformFeature>
-    abstract fun setDesktopModeHidden(hidden: Boolean)
+    // hides exactly these packages, unhides the ones hidden before; @tag:app-hidden
+    abstract fun setHiddenApps(packageNames: Set<String>)
     // returns true on success
     abstract fun setLockTaskPackages(packageNames: List<String>): Boolean
 
     abstract fun getBatteryStatus(): BatteryStatus
     abstract fun getBatteryStatusLive(): LiveData<BatteryStatus>
 
-    abstract fun setEnableCustomHomescreen(enable: Boolean)
+    // @tag:child-homescreen launcherPackage - named by the parent, null - the own homescreen
+    abstract fun setEnableCustomHomescreen(enable: Boolean, launcherPackage: String?)
 
     // this function requires the device owner permission and a recent android version
     abstract fun setForceNetworkTime(enable: Boolean)

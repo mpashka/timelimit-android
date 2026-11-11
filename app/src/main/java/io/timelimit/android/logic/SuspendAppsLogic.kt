@@ -21,6 +21,9 @@ import io.timelimit.android.coroutines.runAsyncExpectForever
 import io.timelimit.android.data.invalidation.Observer
 import io.timelimit.android.data.invalidation.Table
 import io.timelimit.android.data.model.AppAllowance
+import io.timelimit.android.data.model.AppRule
+import io.timelimit.android.data.model.Category
+import io.timelimit.android.data.model.CategoryFlags
 import io.timelimit.android.data.model.CategoryApp
 import io.timelimit.android.data.model.ConsentFlags
 import io.timelimit.android.data.model.ExperimentalFlags
@@ -40,6 +43,35 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 class SuspendAppsLogic(private val appLogic: AppLogic): Observer {
     companion object {
+        // @tag:device-owner @tag:bypass-audit
+        val DESKTOP_MODE_PACKAGES = setOf(
+            "com.zui.desktoplauncher",
+            "com.motorola.mobiledesktop",
+            "com.motorola.mobiledesktop.core"
+        )
+
+        // packages hidden from the child: hidden app rules and apps of hidden categories,
+        // a category is hidden also when one of its parents is
+        // @tag:app-hidden
+        fun hiddenPackages(
+            appRules: List<AppRule>,
+            categories: List<Category>,
+            categoryApps: List<CategoryApp>,
+            deviceId: String
+        ): Set<String> {
+            val byId = categories.associateBy { it.id }
+            fun isHidden(id: String, depth: Int): Boolean {
+                val category = byId[id] ?: return false
+                return category.flags and CategoryFlags.HIDDEN != 0L ||
+                        (depth < byId.size && isHidden(category.parentCategoryId, depth + 1))
+            }
+
+            return appRules.filter { it.hidden }.map { it.packageName }.toSet() + categoryApps
+                .filter { (it.appSpecifier.deviceId == null || it.appSpecifier.deviceId == deviceId) && isHidden(it.categoryId, 0) }
+                .map { it.appSpecifier.packageName }
+                .filterNot { it.startsWith(".") } // dummy apps and features
+        }
+
         // @tag:app-rule
         fun nextDayStart(now: Long, timeZone: TimeZone): Long =
             Instant.ofEpochMilli(now).atZone(timeZone.toZoneId()).toLocalDate().plusDays(1)
@@ -77,7 +109,8 @@ class SuspendAppsLogic(private val appLogic: AppLogic): Observer {
     private var lastEnableBlockingAtSystemLevel = false
     private var lastSuspendedApps: List<String>? = null
     private var lastBlockedFeatures: Set<String>? = null
-    private var lastDesktopModeHidden: Boolean? = null
+    private var lastHiddenApps: Set<String>? = null
+    private val hiddenAppsModified = AtomicBoolean(false)
     private val userAndDeviceRelatedDataLive = appLogic.database.derivedDataDao().getUserAndDeviceRelatedDataLive()
     private var didLoadUserAndDeviceRelatedData = false
 
@@ -111,7 +144,7 @@ class SuspendAppsLogic(private val appLogic: AppLogic): Observer {
     }
 
     override fun onInvalidated(tables: Set<Table>) {
-        installedAppsModified.set(true); triggerUpdate()
+        installedAppsModified.set(true); hiddenAppsModified.set(true); triggerUpdate()
     }
 
     private fun updateBlockingSync() {
@@ -125,7 +158,7 @@ class SuspendAppsLogic(private val appLogic: AppLogic): Observer {
             lastCategoryApps = emptyList()
             lastSuspendedApps = emptyList()
             lastBlockedFeatures = emptySet()
-            lastDesktopModeHidden = null
+            lastHiddenApps = null
 
             return
         }
@@ -140,7 +173,15 @@ class SuspendAppsLogic(private val appLogic: AppLogic): Observer {
             }
 
         val isRestrictedUser = userAndDeviceRelatedData?.userRelatedData?.user?.type == UserType.Child
-        applyDesktopModeHidden(isRestrictedUser)
+        applyHiddenApps(if (isRestrictedUser) userAndDeviceRelatedData?.let { data ->
+            DESKTOP_MODE_PACKAGES + hiddenPackages(
+                appRules = data.userRelatedData!!.user.appRules,
+                categories = data.userRelatedData.categories.map { it.category },
+                categoryApps = data.userRelatedData.categoryApps,
+                deviceId = data.deviceRelatedData.deviceEntry.id
+            ) - AndroidIntegrationApps.appsToNotSuspend - appLogic.context.packageName -
+                    setOfNotNull(appLogic.database.config().getLauncherPackageSync())
+        }.orEmpty() else emptySet())
         val enableBlockingAtSystemLevel = userAndDeviceRelatedData?.deviceRelatedData?.isExperimentalFlagSetSync(ExperimentalFlags.SYSTEM_LEVEL_BLOCKING) ?: false
         val hasManagedFeatures = featureCategoryApps.isNotEmpty()
         val enableBlocking = isRestrictedUser && (enableBlockingAtSystemLevel || hasManagedFeatures)
@@ -357,13 +398,14 @@ class SuspendAppsLogic(private val appLogic: AppLogic): Observer {
         }
     }
 
-    // @tag:device-owner @tag:bypass-audit
-    private fun applyDesktopModeHidden(hidden: Boolean) {
-        if (hidden == lastDesktopModeHidden) return
+    // the platform reconciles with what is hidden in the system; a new install of a hidden package re-applies
+    // @tag:device-owner @tag:bypass-audit @tag:app-hidden
+    private fun applyHiddenApps(packageNames: Set<String>) {
+        if (packageNames == lastHiddenApps && !hiddenAppsModified.getAndSet(false)) return
 
-        appLogic.platformIntegration.setDesktopModeHidden(hidden)
+        appLogic.platformIntegration.setHiddenApps(packageNames)
 
-        lastDesktopModeHidden = hidden
+        lastHiddenApps = packageNames
     }
 
     private fun applyBlockedFeatures(featureNames: Set<String>) {

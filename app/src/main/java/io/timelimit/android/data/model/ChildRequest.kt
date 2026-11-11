@@ -59,8 +59,8 @@ data class AppAllowance(val packageName: String, val until: Long) {
  * `users.data[].appRules` of docs/specification/protocol-new-ui.md, section 3: [days] bit 0 is Monday,
  * [limitMinutes] -1 means no own limit; [usedMs] is the time of all tablets on [usedDay].
  */
-// @tag:app-rule
-data class AppRule(val packageName: String, val days: Int, val limitMinutes: Int, val usedDay: Int, val usedMs: Long)
+// @tag:app-rule @tag:app-hidden
+data class AppRule(val packageName: String, val days: Int, val limitMinutes: Int, val usedDay: Int, val usedMs: Long, val hidden: Boolean = false)
 
 /** `users.data[].newApps` of docs/specification/protocol-new-ui.md, section 5. */
 // @tag:new-app
@@ -158,7 +158,7 @@ object ChildRequestJson {
 
         reader.beginArray()
         while (reader.hasNext()) {
-            var packageName = ""; var days = 127; var limitMinutes = -1; var usedDay = 0; var usedMs = 0L
+            var packageName = ""; var days = 127; var limitMinutes = -1; var usedDay = 0; var usedMs = 0L; var hidden = false
 
             reader.beginObject()
             while (reader.hasNext()) {
@@ -168,12 +168,13 @@ object ChildRequestJson {
                     "limitMinutes" -> limitMinutes = reader.nextInt()
                     "usedDay" -> usedDay = reader.nextInt()
                     "usedMs" -> usedMs = reader.nextLong()
+                    "hidden" -> hidden = reader.nextBoolean()
                     else -> reader.skipValue()
                 }
             }
             reader.endObject()
 
-            result.add(AppRule(packageName, days, limitMinutes, usedDay, usedMs))
+            result.add(AppRule(packageName, days, limitMinutes, usedDay, usedMs, hidden))
         }
         reader.endArray()
 
@@ -229,7 +230,7 @@ object ChildRequestJson {
         rules.forEach {
             writer.beginObject().name("packageName").value(it.packageName).name("days").value(it.days)
                 .name("limitMinutes").value(it.limitMinutes).name("usedDay").value(it.usedDay).name("usedMs").value(it.usedMs)
-                .endObject()
+                .name("hidden").value(it.hidden).endObject()
         }
         writer.endArray()
     }

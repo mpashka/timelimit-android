@@ -189,6 +189,7 @@ object ApplyServerDataStatus {
                             // @tag:device-flags
                             if (newDevice.deviceId == thisDeviceId) {
                                 database.config().setExperimentalFlagsSync(newDevice.experimentalFlags)
+                                database.config().setLauncherPackageSync(newDevice.launcher) // @tag:child-homescreen
                             }
 
                             if (oldDeviceEntry == null) {

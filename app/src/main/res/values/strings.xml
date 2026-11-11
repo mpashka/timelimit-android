@@ -1919,4 +1919,6 @@
     <string name="app_usage_not_counted_temporarily_allowed">time is not counted: temporarily allowed</string>
     <string name="app_usage_not_counted_whitelisted">time is not counted: system app exception</string>
     <string name="app_usage_no_category">no category</string>
+    <!-- @tag:child-homescreen at most 200 characters -->
+    <string name="device_owner_short_support_message">This app is closed by the TimeLimit rules. Time left and when it opens: see the TimeLimit widget or app.</string>
 </resources>

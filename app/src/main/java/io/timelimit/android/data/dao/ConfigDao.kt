@@ -15,7 +15,6 @@
  */
 package io.timelimit.android.data.dao
 
-import android.content.ComponentName
 import android.util.Base64
 import android.util.JsonWriter
 import androidx.lifecycle.LiveData
@@ -25,7 +24,6 @@ import io.timelimit.android.data.model.ConfigurationItem
 import io.timelimit.android.data.model.ConfigurationItemType
 import io.timelimit.android.data.model.ConfigurationItemTypeConverter
 import io.timelimit.android.data.model.ConfigurationItemTypeUtil
-import io.timelimit.android.data.model.ExperimentalFlags
 import io.timelimit.android.extensions.base64
 import io.timelimit.android.extensions.parseBase64
 import io.timelimit.android.extensions.toJsonReader
@@ -295,16 +293,12 @@ abstract class ConfigDao {
         if (flags == old) return
 
         updateValueSync(ConfigurationItemType.ExperimentalFlags, flags.toString(16))
-
-        val launcher = ExperimentalFlags.CUSTOM_HOME_SCREEN
-        if (flags and launcher != 0L && old and launcher == 0L) setDefaultHomescreenSync(null)
     }
 
-    fun getDefaultHomescreenSync(): ComponentName? = getValueOfKeySync(ConfigurationItemType.DefaultHomescreen)?.let {
-        ComponentName.unflattenFromString(it)
-    }
-
-    fun setDefaultHomescreenSync(componentName: ComponentName?) = updateValueSync(ConfigurationItemType.DefaultHomescreen, componentName?.flattenToString())
+    // @tag:child-homescreen launcher package of the own device from the server, null - not named
+    fun getLauncherPackageSync(): String? = getValueOfKeySync(ConfigurationItemType.DefaultHomescreen)
+    fun getLauncherPackageAsync(): LiveData<String?> = getValueOfKeyAsync(ConfigurationItemType.DefaultHomescreen)
+    fun setLauncherPackageSync(packageName: String?) = updateValueSync(ConfigurationItemType.DefaultHomescreen, packageName?.ifEmpty { null })
 
     fun getHomescreenDelaySync(): Int = getValueOfKeySync(ConfigurationItemType.HomescreenDelay)?.toIntOrNull(radix = 10) ?: 5
     fun setHomescreenDelaySync(delay: Int) = updateValueSync(ConfigurationItemType.HomescreenDelay, delay.toString(radix = 10))

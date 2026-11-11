@@ -566,12 +566,15 @@ class ParentApiOverLogic(private val logic: AppLogic) : ParentApi {
         )
     }
 
+    // the action sets the whole rule, so the hidden mark from the server is passed on
+    // @tag:app-hidden
     override suspend fun setAppRule(packageName: String, days: Int, limitMinutes: Int): Undo? {
         val data = childData() ?: return null
         val old = data.user.appRules.find { it.packageName == packageName }
+        val hidden = old?.hidden ?: false
 
-        dispatch(listOf(SetAppRuleAction(data.user.id, packageName, days, limitMinutes)))
-        return undoWith(listOf(SetAppRuleAction(data.user.id, packageName, old?.days ?: 127, old?.limitMinutes ?: -1)))
+        dispatch(listOf(SetAppRuleAction(data.user.id, packageName, days, limitMinutes, hidden)))
+        return undoWith(listOf(SetAppRuleAction(data.user.id, packageName, old?.days ?: 127, old?.limitMinutes ?: -1, hidden)))
     }
 
     // the allowance stacks on the one in force, as in the web console

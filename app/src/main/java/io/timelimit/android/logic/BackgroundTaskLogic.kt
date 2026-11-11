@@ -112,8 +112,12 @@ class BackgroundTaskLogic(val appLogic: AppLogic) {
             }
         }
 
-        appLogic.database.config().isExperimentalFlagsSetAsync(ExperimentalFlags.CUSTOM_HOME_SCREEN).observeForever {
-            appLogic.platformIntegration.setEnableCustomHomescreen(it)
+        // @tag:child-homescreen
+        mergeLiveData(
+            appLogic.database.config().isExperimentalFlagsSetAsync(ExperimentalFlags.CUSTOM_HOME_SCREEN),
+            appLogic.database.config().getLauncherPackageAsync()
+        ).observeForever { (enable, launcher) ->
+            appLogic.platformIntegration.setEnableCustomHomescreen(enable == true, launcher)
         }
 
         appLogic.database.config().isExperimentalFlagsSetAsync(ExperimentalFlags.NETWORKTIME_AT_SYSTEMLEVEL).observeForever {

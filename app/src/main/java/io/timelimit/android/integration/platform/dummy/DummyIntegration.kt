@@ -173,14 +173,14 @@ class DummyIntegration(
 
     override fun getFeatures(): List<PlatformFeature> = emptyList()
 
-    override fun setDesktopModeHidden(hidden: Boolean) = Unit
+    override fun setHiddenApps(packageNames: Set<String>) = Unit
 
     override fun setLockTaskPackages(packageNames: List<String>) = false
 
     override fun getBatteryStatus(): BatteryStatus = batteryStatus.value!!
     override fun getBatteryStatusLive(): LiveData<BatteryStatus> = batteryStatus
 
-    override fun setEnableCustomHomescreen(enable: Boolean) = Unit
+    override fun setEnableCustomHomescreen(enable: Boolean, launcherPackage: String?) = Unit
     override fun setForceNetworkTime(enable: Boolean) = Unit
 
     override fun restartApp() = Unit

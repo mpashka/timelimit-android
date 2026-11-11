@@ -805,15 +805,15 @@ object LocalDatabaseParentActionDispatcher {
                                 listOfNotNull(AppAllowance(action.packageName, action.until).takeIf { action.until != 0L })
                     ))
                 }
-                // @tag:app-rule
+                // @tag:app-rule @tag:app-hidden
                 is SetAppRuleAction -> {
                     val user = database.user().getUserByIdSync(action.userId) ?: throw IllegalArgumentException("user not found")
                     val old = user.appRules.find { it.packageName == action.packageName }
                     val rest = user.appRules.filterNot { it.packageName == action.packageName }
 
                     database.user().updateUserSync(user.copy(
-                        appRules = if (action.days == 127 && action.limitMinutes == -1) rest
-                        else rest + AppRule(action.packageName, action.days, action.limitMinutes, old?.usedDay ?: 0, old?.usedMs ?: 0)
+                        appRules = if (action.days == 127 && action.limitMinutes == -1 && !action.hidden) rest
+                        else rest + AppRule(action.packageName, action.days, action.limitMinutes, old?.usedDay ?: 0, old?.usedMs ?: 0, action.hidden)
                     ))
                 }
                 is UpdateUserUrlFilterAction -> {

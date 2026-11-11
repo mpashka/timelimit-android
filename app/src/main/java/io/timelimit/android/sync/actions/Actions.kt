@@ -2296,8 +2296,8 @@ data class SetAppAllowanceAction(val userId: String, val packageName: String, va
     }
 }
 
-// @tag:app-rule
-data class SetAppRuleAction(val userId: String, val packageName: String, val days: Int, val limitMinutes: Int): ParentAction() {
+// @tag:app-rule @tag:app-hidden
+data class SetAppRuleAction(val userId: String, val packageName: String, val days: Int, val limitMinutes: Int, val hidden: Boolean = false): ParentAction() {
     init {
         IdGenerator.assertIdValid(userId)
         if (days !in 0..127 || limitMinutes !in -1..1440) throw IllegalArgumentException()
@@ -2310,6 +2310,7 @@ data class SetAppRuleAction(val userId: String, val packageName: String, val day
         writer.name("packageName").value(packageName)
         writer.name("days").value(days)
         writer.name("limitMinutes").value(limitMinutes)
+        writer.name("hidden").value(hidden)
         writer.endObject()
     }
 }

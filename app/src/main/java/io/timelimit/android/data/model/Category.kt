@@ -274,5 +274,7 @@ object CategoryTimeWarnings {
 
 object CategoryFlags {
     const val HAS_BLOCKED_NETWROK_LIST = 1L
-    const val ALL = HAS_BLOCKED_NETWROK_LIST
+    // @tag:app-hidden all apps of the category and its subcategories are hidden on the child device
+    const val HIDDEN = 2L
+    const val ALL = HAS_BLOCKED_NETWROK_LIST or HIDDEN
 }

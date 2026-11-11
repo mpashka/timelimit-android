@@ -74,13 +74,6 @@ class AndroidIntegration(context: Context): PlatformIntegration(maximumProtectio
     companion object {
         private const val LOG_TAG = "AndroidIntegration"
 
-        // @tag:device-owner @tag:bypass-audit
-        private val DESKTOP_MODE_PACKAGES = listOf(
-            "com.zui.desktoplauncher",
-            "com.motorola.mobiledesktop",
-            "com.motorola.mobiledesktop.core"
-        )
-
         val maximumProtectionLevel: ProtectionLevel
 
         init {
@@ -112,6 +105,12 @@ class AndroidIntegration(context: Context): PlatformIntegration(maximumProtectio
         AppsChangeListener.registerBroadcastReceiver(this.context, object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 installedAppsChangeListener?.run()
+
+                // @tag:child-homescreen the named launcher may be installed after the flag came
+                val launcher = homescreenLauncher
+                if (launcher != null && homescreenEnabled && intent?.data?.schemeSpecificPart == launcher) {
+                    setEnableCustomHomescreen(true, launcher)
+                }
             }
         })
 
@@ -515,6 +514,10 @@ class AndroidIntegration(context: Context): PlatformIntegration(maximumProtectio
             }
 
             if (enableLockdown) {
+                // the text of the system dialog for a suspended app, see docs/specification/child-launcher.md, Р3
+                // @tag:child-homescreen
+                policyManager.setShortSupportMessage(deviceAdmin, context.getString(R.string.device_owner_short_support_message))
+
                 // disable problematic features
                 policyManager.addUserRestriction(deviceAdmin, UserManager.DISALLOW_FACTORY_RESET)
 
@@ -597,7 +600,9 @@ class AndroidIntegration(context: Context): PlatformIntegration(maximumProtectio
                 enableSystemApps()
                 stopSuspendingForAllApps()
                 setBlockedFeatures(emptySet())
-                setDesktopModeHidden(false)
+                setHiddenApps(emptySet())
+                setEnableCustomHomescreen(false, null) // @tag:child-homescreen
+                policyManager.setShortSupportMessage(deviceAdmin, null) // @tag:child-homescreen
             }
 
             true
@@ -615,11 +620,24 @@ class AndroidIntegration(context: Context): PlatformIntegration(maximumProtectio
         else false
     }
 
-    override fun setDesktopModeHidden(hidden: Boolean) {
+    // packages this device owner keeps hidden; learnt from the system on the first call after the start
+    private var hiddenApps: MutableSet<String>? = null
+
+    // @tag:device-owner @tag:bypass-audit @tag:app-hidden
+    @Synchronized
+    override fun setHiddenApps(packageNames: Set<String>) {
         if (!policyManager.isDeviceOwnerApp(context.packageName) || BuildConfig.storeCompilant) return
 
+        val current = hiddenApps ?: context.packageManager
+            .getInstalledApplications(PackageManager.MATCH_UNINSTALLED_PACKAGES)
+            .map { it.packageName }
+            .filter { policyManager.isApplicationHidden(deviceAdmin, it) }
+            .toMutableSet()
+            .also { hiddenApps = it }
+
         // returns false for a package that is not installed, which is the normal case off Lenovo
-        DESKTOP_MODE_PACKAGES.forEach { policyManager.setApplicationHidden(deviceAdmin, it, hidden) }
+        (packageNames - current).forEach { if (policyManager.setApplicationHidden(deviceAdmin, it, true)) current.add(it) }
+        (current - packageNames).forEach { policyManager.setApplicationHidden(deviceAdmin, it, false); current.remove(it) }
     }
 
     override fun getFeatures(): List<PlatformFeature> {
@@ -674,16 +692,42 @@ class AndroidIntegration(context: Context): PlatformIntegration(maximumProtectio
     override fun getBatteryStatus(): BatteryStatus = battery.status.value!!
     override fun getBatteryStatusLive(): LiveData<BatteryStatus> = battery.status
 
-    override fun setEnableCustomHomescreen(enable: Boolean) {
-        val homescreen = ComponentName(context, HomescreenActivity::class.java)
+    private var homescreenEnabled = false
+    private var homescreenLauncher: String? = null
+    // launcher pinned before; below API 30 only known within this process
+    private var pinnedLauncher: String? = null
+
+    // pins the launcher named by the parent if it is installed and has a HOME activity, otherwise the own one
+    // @tag:child-homescreen
+    override fun setEnableCustomHomescreen(enable: Boolean, launcherPackage: String?) {
+        homescreenEnabled = enable
+        homescreenLauncher = launcherPackage
+
+        val ownHomescreen = ComponentName(context, HomescreenActivity::class.java)
 
         context.packageManager.setComponentEnabledSetting(
-                homescreen,
+                ownHomescreen,
                 if (enable) PackageManager.COMPONENT_ENABLED_STATE_ENABLED else PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
                 PackageManager.DONT_KILL_APP
         )
 
         if (BuildConfig.storeCompilant || !policyManager.isDeviceOwnerApp(context.packageName)) return
+
+        val foreign = launcherPackage?.takeIf { enable && it != context.packageName }?.let { packageName ->
+            context.packageManager.queryIntentActivities(
+                Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).setPackage(packageName), 0
+            ).firstOrNull()?.activityInfo?.let { ComponentName(it.packageName, it.name) }
+        }
+        val previous = (
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) policyManager.getUserControlDisabledPackages(deviceAdmin)
+                else listOfNotNull(pinnedLauncher)
+        ).filter { it != context.packageName }
+
+        policyManager.clearPackagePersistentPreferredActivities(deviceAdmin, context.packageName)
+        previous.forEach {
+            policyManager.clearPackagePersistentPreferredActivities(deviceAdmin, it)
+            policyManager.setUninstallBlocked(deviceAdmin, it, false)
+        }
 
         if (enable) {
             policyManager.addPersistentPreferredActivity(
@@ -692,13 +736,20 @@ class AndroidIntegration(context: Context): PlatformIntegration(maximumProtectio
                         addCategory(Intent.CATEGORY_HOME)
                         addCategory(Intent.CATEGORY_DEFAULT)
                     },
-                    homescreen
+                    foreign ?: ownHomescreen
             )
-        } else {
-            policyManager.clearPackagePersistentPreferredActivities(deviceAdmin, context.packageName)
         }
 
-        // @tag:child-homescreen
+        foreign?.let { policyManager.setUninstallBlocked(deviceAdmin, it.packageName, true) }
+        pinnedLauncher = foreign?.packageName
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            policyManager.setUserControlDisabledPackages(
+                deviceAdmin,
+                if (enable) listOfNotNull(context.packageName, foreign?.packageName) else emptyList()
+            )
+        }
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             if (enable) policyManager.addUserRestriction(deviceAdmin, UserManager.DISALLOW_CONFIG_DEFAULT_APPS)
             else policyManager.clearUserRestriction(deviceAdmin, UserManager.DISALLOW_CONFIG_DEFAULT_APPS)
