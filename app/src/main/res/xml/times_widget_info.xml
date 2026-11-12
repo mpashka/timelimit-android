@@ -14,11 +14,12 @@
     You should have received a copy of the GNU General Public License
     along with this program. If not, see <https://www.gnu.org/licenses/>.
 -->
-<!-- @tag:child-widget the size is free down to one line: categories scroll in the list -->
+<!-- @tag:child-widget the size is free down to one cell: categories scroll in the list, titles
+     are cut short. HyperOS counts cells by the old 70n-30 dp rule, so one cell is at most 40dp -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:minWidth="180dp"
     android:minHeight="100dp"
-    android:minResizeWidth="110dp"
+    android:minResizeWidth="40dp"
     android:minResizeHeight="40dp"
     android:updatePeriodMillis="0"
     android:resizeMode="horizontal|vertical"
