@@ -713,11 +713,18 @@ class AndroidIntegration(context: Context): PlatformIntegration(maximumProtectio
 
         if (BuildConfig.storeCompilant || !policyManager.isDeviceOwnerApp(context.packageName)) return
 
-        val foreign = launcherPackage?.takeIf { enable && it != context.packageName }?.let { packageName ->
+        val named = launcherPackage?.takeIf { enable && it != context.packageName }
+        val foreign = named?.let { packageName ->
             context.packageManager.queryIntentActivities(
                 Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).setPackage(packageName), 0
             ).firstOrNull()?.activityInfo?.let { ComponentName(it.packageName, it.name) }
         }
+
+        // the named launcher has no HOME activity right now - keep whatever is pinned instead of
+        // falling back to the own screen: the fallback would drop the uninstall and user control
+        // protection of the named launcher too, and nothing pins it back until the value changes.
+        // The PACKAGE_ADDED/CHANGED listener calls this again once the launcher is resolvable
+        if (named != null && foreign == null) return
         val previous = (
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) policyManager.getUserControlDisabledPackages(deviceAdmin)
                 else listOfNotNull(pinnedLauncher)
