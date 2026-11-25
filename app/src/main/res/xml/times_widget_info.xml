@@ -15,12 +15,16 @@
     along with this program. If not, see <https://www.gnu.org/licenses/>.
 -->
 <!-- @tag:child-widget the size is free down to one cell: categories scroll in the list, titles
-     are cut short. HyperOS counts cells by the old 70n-30 dp rule, so one cell is at most 40dp -->
+     are cut short. HyperOS counts cells by the old 70n-30 dp rule, so one cell is at most 40dp.
+     maxResize is larger than any screen we have on purpose: HyperOS would not stretch the widget
+     past one row without it, and the owner asked for no upper limit at all -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:minWidth="180dp"
     android:minHeight="100dp"
     android:minResizeWidth="40dp"
     android:minResizeHeight="40dp"
+    android:maxResizeWidth="1000dp"
+    android:maxResizeHeight="1000dp"
     android:updatePeriodMillis="0"
     android:resizeMode="horizontal|vertical"
     android:previewImage="@drawable/widget_preview"
