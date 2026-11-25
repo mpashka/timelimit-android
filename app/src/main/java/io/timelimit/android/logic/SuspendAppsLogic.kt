@@ -336,14 +336,7 @@ class SuspendAppsLogic(private val appLogic: AppLogic): Observer {
             deviceId = deviceId
         )?.categoryId?.let { data.categoryById[it] }
 
-        val globalCategoryApps = data.categoryApps.filter { it.appSpecifier.deviceId == null }
-        val localCategoryApps = data.categoryApps.filter { it.appSpecifier.deviceId == deviceId }
-        val localCategoryAppsParams = localCategoryApps.map { it.appSpecifier.packageName to it.appSpecifier.activityName }.toSet()
-        val effectiveGlobalCategoryApps = globalCategoryApps.filter {
-            !localCategoryAppsParams.contains(it.appSpecifier.packageName to it.appSpecifier.activityName) &&
-            !localCategoryAppsParams.contains(it.appSpecifier.packageName to null)
-        }
-        val effectiveCategoryApps = effectiveGlobalCategoryApps + localCategoryApps
+        val effectiveCategoryApps = data.effectiveCategoryApps(deviceId)
 
         if (blockingAtActivityLevel) {
             val categoriesByPackageName = effectiveCategoryApps.groupBy { it.appSpecifier.packageName }

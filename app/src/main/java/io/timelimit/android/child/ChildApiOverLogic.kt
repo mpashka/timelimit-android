@@ -101,9 +101,10 @@ class ChildApiOverLogic(private val logic: AppLogic) : ChildApi {
 
     // @tag:child-request
     override suspend fun ask(packageName: String, word: String) {
-        val user = withContext(Dispatchers.IO) { logic.database.derivedDataDao().getUserAndDeviceRelatedDataSync() }
-            ?.userRelatedData ?: return
-        val categoryId = user.categoryApps.firstOrNull { it.appSpecifier.packageName == packageName }?.categoryId ?: ""
+        val data = withContext(Dispatchers.IO) { logic.database.derivedDataDao().getUserAndDeviceRelatedDataSync() } ?: return
+        val user = data.userRelatedData ?: return
+        val categoryId = user.effectiveCategoryApps(data.deviceRelatedData.deviceEntry.id)
+            .firstOrNull { it.appSpecifier.packageName == packageName }?.categoryId ?: ""
 
         ApplyActionUtil.applyAppLogicAction(
             action = CreateChildRequestAction(IdGenerator.generateId(), packageName, categoryId, word.take(CreateChildRequestAction.MAX_WORD_LENGTH)),
@@ -337,19 +338,21 @@ class ChildApiOverLogic(private val logic: AppLogic) : ChildApi {
         val time = now()
         val user = data?.userRelatedData
 
-        if (user == null || user.user.type != UserType.Child) return Today(time.timeInMillis, emptyList(), emptyList(), null)
+        if (data == null || user == null || user.user.type != UserType.Child) return Today(time.timeInMillis, emptyList(), emptyList(), null)
+
+        val categoryApps = user.effectiveCategoryApps(data.deviceRelatedData.deviceEntry.id)
 
         val waiting = ChildRequestStates.waiting(user.user.childRequests, time.timeInMillis)
             .map { WaitingRequest(app(it.packageName), it.createdAt) }
         val cache = handlingCache(data, user, time, null)
         val nowMinute = getMinuteOfWeek(time.timeInMillis, user.timeZone)
         val minuteStart = time.timeInMillis - time.timeInMillis % MINUTE
-        val appsByCategory = user.categoryApps.groupBy({ it.categoryId }, { it.appSpecifier.packageName })
+        val appsByCategory = categoryApps.groupBy({ it.categoryId }, { it.appSpecifier.packageName })
         // @tag:app-rule
         val ruleClosed = AppRuleCheck.closedPackages(
             rules = user.user.appRules,
             allowedPackages = AppAllowance.activePackages(user.user.appAllowances, time.timeInMillis, time.shouldTrustTimeTemporarily),
-            categoryIdsOf = { packageName -> user.categoryApps.filter { it.appSpecifier.packageName == packageName }.map { it.categoryId }.toSet() },
+            categoryIdsOf = { packageName -> categoryApps.filter { it.appSpecifier.packageName == packageName }.map { it.categoryId }.toSet() },
             handlingOf = cache::get,
             now = time.timeInMillis,
             timeZone = user.timeZone,

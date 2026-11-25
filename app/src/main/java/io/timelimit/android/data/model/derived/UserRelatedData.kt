@@ -53,7 +53,23 @@ data class UserRelatedData(
                     categoryApps = categoryApps
             ).also { database.registerWeakObserver(relatedTables, WeakReference(it)) }
         }
+
+        // a record of this device hides the shared one even when the shared record is at app level
+        // and the device record is at activity level - otherwise both would apply at once
+        fun effectiveCategoryApps(categoryApps: List<CategoryApp>, deviceId: String): List<CategoryApp> {
+            val deviceApps = categoryApps.filter { it.appSpecifier.deviceId == deviceId }
+            val deviceAppParams = deviceApps.map { it.appSpecifier.packageName to it.appSpecifier.activityName }.toSet()
+            val sharedApps = categoryApps.filter {
+                it.appSpecifier.deviceId == null &&
+                        !deviceAppParams.contains(it.appSpecifier.packageName to it.appSpecifier.activityName) &&
+                        !deviceAppParams.contains(it.appSpecifier.packageName to null)
+            }
+
+            return sharedApps + deviceApps
+        }
     }
+
+    fun effectiveCategoryApps(deviceId: String): List<CategoryApp> = effectiveCategoryApps(categoryApps, deviceId)
 
     val categoryById: Map<String, CategoryRelatedData> by lazy { categories.associateBy { it.category.id } }
     val timeZone: TimeZone by lazy { user.getTimezone() }
